@@ -1,0 +1,26 @@
+{
+  "name": "buaziz-snaploader-v2",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Download, organize, and embed GPS data into your Snapchat memories. All processing is done client-side to ensure your privacy.",
+  "scripts": {
+    "ng": "ng",
+    "start": "ng serve",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development"
+  },
+  "dependencies": {
+    "@angular/common": "^21.0.1",
+    "@angular/core": "^21.0.1",
+    "@angular/platform-browser": "^21.0.1",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "@angular/build": "^21.0.1",
+    "@angular/cli": "^21.0.1",
+    "@angular/compiler": "^21.0.1",
+    "@angular/compiler-cli": "^21.0.1",
+    "@types/node": "^20.14.9",
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,0 +1,5 @@
+{
+  "name": "Snaploader",
+  "description": "Download, organize, and embed GPS data into your Snapchat memories. All processing is done client-side to ensure your privacy.",
+  "requestFramePermissions": []
+}
