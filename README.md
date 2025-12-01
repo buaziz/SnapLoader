@@ -1,5 +1,7 @@
 # 📸 Snaploader
 
+### 🚀 [**View the Live Demo Here**](https://snap-loader.vercel.app/)
+
 <p align="center">
   <img alt="Angular" src="https://img.shields.io/badge/Angular-DD0031?style=for-the-badge&logo=angular&logoColor=white">
   <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white">
