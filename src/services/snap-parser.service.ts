@@ -42,10 +42,12 @@ export class SnapParserService {
             const url = new URL(mainUrl);
             const expiresTimestamp = url.searchParams.get('ts');
             if (expiresTimestamp) {
-                // The timestamp seems to be in milliseconds from Snapchat's export
-                // It represents the creation time, and links expire 7 days later.
-                const creationDate = new Date(parseInt(expiresTimestamp, 10));
-                expiresAt = new Date(creationDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+                const timestampNum = parseInt(expiresTimestamp, 10);
+                if (!isNaN(timestampNum)) {
+                    // FIX: The 'ts' timestamp from Snapchat is already in milliseconds.
+                    // The previous multiplication by 1000 was incorrect and caused the bug.
+                    expiresAt = new Date(timestampNum);
+                }
             }
           } catch(e) {
             console.warn("Could not parse URL to find expiration date", e);
