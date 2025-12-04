@@ -15,7 +15,7 @@ A powerful, privacy-first web application to download, organize, and enrich your
 ## ✨ Features
 
 - **🛡️ 100% Private & Secure**: All file parsing, data processing, and geocoding happens client-side. Your data is never uploaded to any server.
-- **📁 Easy File Upload**: Simply upload your `memories_history.html` file from your official Snapchat data export.
+- **📁 Easy File Upload**: Upload your entire Snapchat data export `.zip` file directly. The app automatically finds and parses the `memories_history.html` file for you. No need to unzip it first!
 - **🌍 Automatic Geocoding**: Automatically converts GPS coordinates from your memories into country names, allowing you to see where you've been.
 - **📅 Smart Organization**: Choose to group and download your memories by the **year** they were taken or the **country** they were in.
 - **✍️ GPS Data Embedding**: For JPEG images, GPS coordinates are embedded directly into the file's EXIF metadata, making them compatible with photo apps like Google Photos or Apple Photos.
@@ -39,8 +39,10 @@ This application is a modern, zoneless Angular web app built with performance an
 
 ### The Processing Pipeline
 
-1.  **Parsing (`SnapParserService`)**:
-    - When a user uploads `memories_history.html`, this service uses the browser's native `DOMParser` to read the HTML table.
+1.  **Parsing (`SnapParserService` & `AppService`)**:
+    - When a user uploads their Snapchat export, the app first checks if it's a `.zip` file.
+    - If it is, it uses `JSZip` to scan the archive for the `memories_history.html` file, no matter which subfolder it's in.
+    - Once the HTML content is extracted (either from the zip or a direct HTML upload), the service uses the browser's native `DOMParser` to read the memory data table.
     - It extracts the date, media type, location coordinates, and download URLs for each memory.
     - It cleverly determines the link expiration date from the download URLs.
 
