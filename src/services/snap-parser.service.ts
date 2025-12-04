@@ -14,7 +14,7 @@ export class SnapParserService {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlContent, 'text/html');
     const rows = doc.querySelectorAll('tbody tr');
-    let expiresAt: Date | null = null;
+    let latestCreationDate: Date | null = null;
 
     for (const row of Array.from(rows)) {
       try {
@@ -37,20 +37,23 @@ export class SnapParserService {
         
         if (!mainUrl || !dateStr || !type || (type !== 'Image' && type !== 'Video')) continue;
 
-        if (!expiresAt && mainIsGet) {
+        // --- CORRECTED LOGIC ---
+        // Find the latest timestamp, which represents the CREATION date of the export.
+        if (mainIsGet) {
           try {
             const url = new URL(mainUrl);
-            const expiresTimestamp = url.searchParams.get('ts');
-            if (expiresTimestamp) {
-                const timestampNum = parseInt(expiresTimestamp, 10);
+            const creationTimestamp = url.searchParams.get('ts');
+            if (creationTimestamp) {
+                const timestampNum = parseInt(creationTimestamp, 10);
                 if (!isNaN(timestampNum)) {
-                    // FIX: The 'ts' timestamp from Snapchat is already in milliseconds.
-                    // The previous multiplication by 1000 was incorrect and caused the bug.
-                    expiresAt = new Date(timestampNum);
+                    const currentCreationDate = new Date(timestampNum);
+                    if (!latestCreationDate || currentCreationDate > latestCreationDate) {
+                        latestCreationDate = currentCreationDate;
+                    }
                 }
             }
           } catch(e) {
-            console.warn("Could not parse URL to find expiration date", e);
+            console.warn("Could not parse a URL to find a creation date", e);
           }
         }
 
@@ -88,7 +91,15 @@ export class SnapParserService {
       }
     }
     
-    return { memories, expiresAt };
+    // --- CORRECTED CALCULATION ---
+    // The expiration date is exactly 7 days after the creation date.
+    let finalExpiresAt: Date | null = null;
+    if (latestCreationDate) {
+        const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000;
+        finalExpiresAt = new Date(latestCreationDate.getTime() + sevenDaysInMillis);
+    }
+
+    return { memories, expiresAt: finalExpiresAt };
   }
 
   private async hashString(input: string): Promise<string> {

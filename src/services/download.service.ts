@@ -216,7 +216,6 @@ export class DownloadService {
         
         if (isGetRequest) {
           response = await fetch(url, {
-            headers: { 'X-Snap-Route-Tag': 'mem-dmd' },
             signal: abortController.signal,
           });
         } else {

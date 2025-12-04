@@ -66,14 +66,14 @@
           @case ('summary') {
             @let expirationStatus = stateService.linkExpirationStatus();
             @if (expirationStatus.status === 'expired') {
-              <div class="text-center bg-red-900/40 border border-red-500/30 rounded-2xl p-6 sm:p-8 flex flex-col items-center">
-                <div class="text-6xl mb-4">💀</div>
-                <h2 class="text-2xl sm:text-3xl font-bold text-red-300 mb-3">{{ 'EXPIRED_LINKS_TITLE' | translate }}</h2>
-                <p class="text-red-300/90 max-w-xl mx-auto mb-6" [innerHTML]="'EXPIRED_LINKS_DESCRIPTION' | translate"></p>
-                <a href="https://help.snapchat.com/hc/en-us/articles/7012305371156-How-do-I-download-my-data-from-Snapchat" target="_blank" rel="noopener noreferrer" class="text-sm text-snap-yellow hover:underline mb-8">
+              <div class="text-center bg-[#4d3232] border border-[#6b4b4b] rounded-2xl p-6 sm:p-8 flex flex-col items-center">
+                <div class="text-6xl mb-4 text-stone-300">💀</div>
+                <h2 class="text-2xl sm:text-3xl font-bold text-rose-300 mb-3">{{ 'EXPIRED_LINKS_TITLE' | translate }}</h2>
+                <p class="text-stone-300/90 max-w-xl mx-auto mb-6" [innerHTML]="'EXPIRED_LINKS_DESCRIPTION' | translate"></p>
+                <a href="https://help.snapchat.com/hc/en-us/articles/7012305371156-How-do-I-download-my-data-from-Snapchat" target="_blank" rel="noopener noreferrer" class="text-sm text-rose-300 hover:underline mb-8">
                   {{ 'FILE_UPLOAD_HELP_LINK' | translate }}
                 </a>
-                <button (click)="appService.reset()" class="bg-snap-yellow hover:bg-opacity-90 text-black font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-200 hover:scale-105">
+                <button (click)="appService.reset()" class="bg-amber-400 hover:bg-amber-500 text-black font-bold py-3 px-8 rounded-full shadow-lg transition-all duration-200 hover:scale-105">
                   {{ 'UPLOAD_NEW_FILE_BUTTON' | translate }}
                 </button>
               </div>

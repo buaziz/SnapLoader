@@ -23,9 +23,9 @@ const AVAILABLE_LANGUAGES: readonly Language[] = [
 // faster, more reliable, and immune to deployment environment issues.
 const _translationData: Readonly<Record<string, Record<string, string>>> = {
   en: {
-    "APP_TITLE": "Snaploader",
-    "HEADER_TITLE_PART_1": "Snap",
-    "HEADER_TITLE_PART_2": "Loader",
+    "APP_TITLE": "Buaziz Snaploader",
+    "HEADER_TITLE_PART_1": "Buaziz",
+    "HEADER_TITLE_PART_2": "SnapLoader",
     "HEADER_SUBTITLE": "Your memories, unlocked. 🔓",
     "FILE_UPLOAD_TITLE": "Feed the Ghost Your File 👻",
     "FILE_UPLOAD_DESCRIPTION": "Drop your <code class=\"bg-snap-dark text-snap-yellow rounded px-1.5 py-1 text-sm\">memories_history.html</code> file here to begin the magic! ✨",
