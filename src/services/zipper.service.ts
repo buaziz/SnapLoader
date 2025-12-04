@@ -20,11 +20,6 @@ export class ZipperService {
     this.zip.file(path, data);
   }
 
-  addSidecarFile(memory: Memory, content: string): void {
-    const path = this.getFilePath(memory).replace(/\.\w+$/, '.json');
-    this.zip.file(path, content);
-  }
-  
   private getFilePath(memory: Memory): string {
     const selection = this.stateService.selection();
 

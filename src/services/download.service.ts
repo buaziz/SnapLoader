@@ -285,48 +285,39 @@ export class DownloadService {
   private async _embedGpsData(memory: Memory, fileBlob: Blob): Promise<void> {
     const { latitude, longitude } = memory.location;
 
-    // We only embed metadata in images with a valid location.
+    // Only attempt to embed metadata in JPEG images with a valid location.
     if (memory.type !== 'Image' || !latitude || !longitude) {
       this.zipper.addFile(memory, fileBlob);
       return;
     }
-    
-    const fileType = await this._getImageFileType(fileBlob);
-    const originalExtension = memory.filename.split('.').pop()?.toLowerCase() || '';
-    let memoryForZip = { ...memory };
 
-    // Case 1: It's a JPEG. Try to embed EXIF.
+    const fileType = await this._getImageFileType(fileBlob);
+
+    // It's a JPEG. Try to embed EXIF.
     if (fileType?.mime === 'image/jpeg') {
       try {
         const imageWithExif = await this._embedGpsInImage(fileBlob, latitude, longitude, memory.date);
-        
+
+        let memoryForZip = { ...memory };
+        const originalExtension = memory.filename.split('.').pop()?.toLowerCase() || '';
+
         // If original file was mislabeled (e.g. .png but is a .jpg), correct it.
         if (originalExtension !== 'jpg' && originalExtension !== 'jpeg') {
           console.warn(`Correcting file extension for ${memory.filename} to .jpg`);
           memoryForZip.filename = memory.filename.replace(/\.[^/.]+$/, ".jpg");
         }
-        
+
         this.zipper.addFile(memoryForZip, imageWithExif);
         return; // Success!
 
       } catch (error) {
-        console.error(`Could not embed EXIF data in JPEG ${memory.filename}, creating a JSON sidecar file instead.`, error);
-        // Fall through to sidecar logic below.
+        console.error(`Could not embed EXIF data in JPEG ${memory.filename}. Adding original file without metadata.`, error);
+        // Fall through to add the original file without metadata.
       }
     }
-    
-    // Case 2: Not a JPEG, or EXIF embedding failed. Create a sidecar.
-    if (fileType && fileType.ext !== originalExtension) {
-      console.warn(`${memory.filename} has a .${originalExtension} extension but is a ${fileType.ext.toUpperCase()}. Renaming and creating sidecar.`);
-      memoryForZip.filename = memory.filename.replace(/\.[^/.]+$/, `.${fileType.ext}`);
-    } else if (fileType) {
-      console.warn(`${memory.filename} is a ${fileType.ext.toUpperCase()}, which does not support EXIF embedding here. Creating a JSON sidecar file.`);
-    } else {
-      console.warn(`Could not determine the true file type for ${memory.filename}. Creating a JSON sidecar file instead of embedding metadata.`);
-    }
-    
-    this.zipper.addFile(memoryForZip, fileBlob);
-    this._createSidecarFile(memoryForZip, latitude, longitude);
+
+    // For non-JPEGs, videos, or JPEGs that failed EXIF embedding, just add the original file.
+    this.zipper.addFile(memory, fileBlob);
   }
 
   private _embedGpsInImage(imageBlob: Blob, latitude: number, longitude: number, date: Date): Promise<Blob> {
@@ -370,15 +361,6 @@ export class DownloadService {
       };
       reader.readAsDataURL(imageBlob);
     });
-  }
-
-  private _createSidecarFile(memory: Memory, latitude: number, longitude: number): void {
-      const sidecarContent = JSON.stringify({
-          latitude,
-          longitude,
-          date: memory.date.toISOString(),
-      }, null, 2);
-      this.zipper.addSidecarFile(memory, sidecarContent);
   }
 
   private async _getImageFileType(blob: Blob): Promise<{ ext: string; mime: string } | null> {

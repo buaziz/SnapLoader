@@ -22,7 +22,6 @@ A powerful, privacy-first web application to download, organize, and enrich your
 - **🤖 Intelligent Downloading**:
     - Handles Snapchat's complex download formats, including ZIP archives containing main images and overlays.
     - Automatically merges image overlays (filters, stickers) onto the main photo.
-    - Creates `.json` sidecar files with location data for videos and non-JPEG images.
 - **🌐 Multilingual Support**: The interface is available in English and Arabic, with RTL support.
 - **📦 All-in-One ZIP**: Downloads a single, neatly organized `.zip` file with your selected memories sorted into folders.
 
@@ -64,7 +63,7 @@ This application is a modern, zoneless Angular web app built with performance an
         3.  **JSON Manifest**: A link to a `.json` file that contains the *actual* URLs for the media and overlay files.
     - **Metadata Embedding**:
         - For JPEG images, it uses `piexifjs` to write GPS and date information directly into the EXIF headers.
-        - For videos or other image types (PNG, HEIC), it creates a separate `.json` sidecar file containing the metadata.
+        - Videos and other image formats (PNG, HEIC, etc.) are added to the ZIP archive without embedded location data.
 
 4.  **Zipping (`ZipperService`)**:
     - Uses `JSZip` to create a `.zip` archive in the browser's memory.
