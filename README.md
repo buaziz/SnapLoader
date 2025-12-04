@@ -12,6 +12,14 @@ A powerful, privacy-first web application to download, organize, and enrich your
 
 ---
 
+### 💡 Built with Google AI Studio
+
+This entire app was brought to life using **[Google AI Studio](https://aistudio.google.com/)**! 🚀
+
+It's an amazing in-browser IDE that lets you go from a simple idea to a fully functional web app super fast. If you've got a cool project in mind, you should totally check it out. You can code, test, and share your creations all from one place. Go build something awesome! ✨
+
+---
+
 ## ✨ Features
 
 - **🛡️ 100% Private & Secure**: All file parsing, data processing, and geocoding happens client-side. Your data is never uploaded to any server.
