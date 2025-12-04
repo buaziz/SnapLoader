@@ -7,6 +7,7 @@ import { Memory } from '../models';
 import { TranslateService } from './translate.service';
 
 declare var saveAs: any;
+declare var JSZip: any;
 
 @Injectable({ providedIn: 'root' })
 export class AppService {
@@ -23,7 +24,34 @@ export class AppService {
     try {
       this.stateService.status.set('parsing');
       this.stateService.progressMessageKey.set('PARSING_MESSAGE');
-      const htmlContent = await file.text();
+      
+      let htmlContent: string | null = null;
+
+      if (file.name.endsWith('.html') || file.type === 'text/html') {
+        htmlContent = await file.text();
+      } else if (file.name.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
+        this.stateService.progressMessageKey.set('UNZIPPING_FILE');
+        const zip = await JSZip.loadAsync(file);
+        const historyFilePath = Object.keys(zip.files).find(name => name.endsWith('memories_history.html'));
+        
+        if (historyFilePath) {
+          htmlContent = await zip.file(historyFilePath).async('string');
+        } else {
+          this.handleError('ERROR_NO_HTML_IN_ZIP');
+          return;
+        }
+      } else {
+        this.handleError('ERROR_INVALID_FILE_TYPE');
+        return;
+      }
+      
+      this.stateService.progressMessageKey.set('PARSING_MESSAGE');
+
+      if (!htmlContent) {
+        this.handleError('ERROR_INVALID_FILE');
+        return;
+      }
+
       const { memories, expiresAt }: ParseResult = await this.snapParser.parse(htmlContent);
       this.stateService.linksExpireAt.set(expiresAt);
 

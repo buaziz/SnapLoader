@@ -18,7 +18,7 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
         <label for="file-upload" class="cursor-pointer bg-snap-yellow hover:bg-opacity-90 text-black font-bold py-3 px-8 rounded-full shadow-lg transition-transform duration-200 hover:scale-105">
           {{ 'FILE_UPLOAD_BUTTON' | translate }}
         </label>
-        <input id="file-upload" type="file" class="hidden" (change)="onFileSelected($event)" accept=".html">
+        <input id="file-upload" type="file" class="hidden" (change)="onFileSelected($event)" accept=".html,.zip">
       </div>
     </div>
   `,
