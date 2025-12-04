@@ -22,7 +22,7 @@ A powerful, privacy-first web application to download, organize, and enrich your
 - **🤖 Intelligent Downloading**:
     - Handles Snapchat's complex download formats, including ZIP archives containing main images and overlays.
     - Automatically merges image overlays (filters, stickers) onto the main photo.
-- **🌐 Multilingual Support**: The interface is available in English and Arabic, with RTL support.
+- **🌐 Multilingual Support**: The interface is available in English, Arabic, French, Spanish, Chinese, Hindi, and Bengali, with RTL support. It's also easy to [add your own language](#-adding-a-new-language)!
 - **📦 All-in-One ZIP**: Downloads a single, neatly organized `.zip` file with your selected memories sorted into folders.
 
 ---
