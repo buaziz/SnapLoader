@@ -5,6 +5,12 @@ import { TranslateService } from './translate.service';
 export type AppStatus = 'idle' | 'parsing' | 'geocoding' | 'summary' | 'zipping' | 'done' | 'error';
 export type SelectionMode = 'year' | 'country';
 
+// --- Developer Mode Configuration ---
+// Set to `true` to force a smaller batch size for easy testing.
+const DEV_MODE = false;
+const DEV_BATCH_SIZE = 10;
+// ------------------------------------
+
 // New interfaces for derived state
 export interface VisualStatus {
   textKey: string;
@@ -38,7 +44,14 @@ export class StateService {
   selection = signal<number | string | null>(null);
   isCancelled = signal(false);
 
+  // --- Batch Download State ---
+  isBatchDownload = signal(false);
+  totalBatches = signal(0);
+  currentBatch = signal(0);
+
   // Computed Signals (Derivations of State)
+  isLargeSelection = computed(() => this.selectedTotalMemories() > this.getBatchSize());
+  
   linkExpirationStatus = computed(() => {
     const expiresAt = this.linksExpireAt();
     if (!expiresAt) {
@@ -276,6 +289,9 @@ export class StateService {
         const { downloadState, downloadProgress, retryCount, ...rest } = m;
         return rest;
     }));
+    this.isBatchDownload.set(false);
+    this.totalBatches.set(0);
+    this.currentBatch.set(0);
   }
 
   reset(): void {
@@ -289,6 +305,38 @@ export class StateService {
     this.linksExpireAt.set(null);
     if (this.zipBlobUrl()) URL.revokeObjectURL(this.zipBlobUrl());
     this.zipBlobUrl.set('');
+    this.isBatchDownload.set(false);
+    this.totalBatches.set(0);
+    this.currentBatch.set(0);
+  }
+
+  getBatchSize(): number {
+    if (DEV_MODE) {
+      console.warn(`[Snaploader Dev] DEV_MODE is enabled. Using batch size of ${DEV_BATCH_SIZE}.`);
+      return DEV_BATCH_SIZE;
+    }
+
+    try {
+      // This logic remains for potential future use or for other developers,
+      // but DEV_MODE provides the most reliable testing method.
+      const batchSizeFromWindow = (window as any).SNAPLOADER_BATCH_SIZE;
+      if (typeof batchSizeFromWindow === 'number' && batchSizeFromWindow > 0) {
+        return batchSizeFromWindow;
+      }
+      
+      const params = new URLSearchParams(window.location.search);
+      const sizeFromUrl = params.get('batchSize');
+      if (sizeFromUrl) {
+        const num = parseInt(sizeFromUrl, 10);
+        if (!isNaN(num) && num > 0) {
+          return num;
+        }
+      }
+    } catch (e) {
+      // Silently fail if URL params are not available (e.g., in some iframe contexts)
+    }
+
+    return 500; // Default production value
   }
 
   private _getVisualStatus(memory: Memory): VisualStatus {

@@ -1,5 +1,9 @@
 <div>
-  <h2 class="text-2xl font-semibold text-white text-center mb-4">📦 {{ stateService.progressMessageKey() | translate }}</h2>
+  @if (stateService.isBatchDownload()) {
+    <h2 class="text-2xl font-semibold text-white text-center mb-4">{{ 'PROCESSING_PART' | translate:{current: stateService.currentBatch(), total: stateService.totalBatches()} }}</h2>
+  } @else {
+    <h2 class="text-2xl font-semibold text-white text-center mb-4">📦 {{ stateService.progressMessageKey() | translate }}</h2>
+  }
   <div class="w-full bg-snap-dark rounded-full h-4 overflow-hidden mb-2 border border-black/50">
     <div class="bg-snap-yellow h-4 rounded-full transition-all duration-500" [style.width.%]="stateService.progress()"></div>
   </div>

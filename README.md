@@ -27,11 +27,12 @@ It's an amazing in-browser IDE that lets you go from a simple idea to a fully fu
 - **🌍 Automatic Geocoding**: Automatically converts GPS coordinates from your memories into country names, allowing you to see where you've been.
 - **📅 Smart Organization**: Choose to group and download your memories by the **year** they were taken or the **country** they were in.
 - **✍️ GPS Data Embedding**: For JPEG images, GPS coordinates are embedded directly into the file's EXIF metadata, making them compatible with photo apps like Google Photos or Apple Photos.
+- **📦 Robust Batch Downloading**: For selections over 500 memories, the app automatically splits the download into smaller, more manageable ZIP files. This prevents browser crashes and ensures a reliable experience for users with huge photo libraries.
 - **🤖 Intelligent Downloading**:
     - Handles Snapchat's complex download formats, including ZIP archives containing main images and overlays.
     - Automatically merges image overlays (filters, stickers) onto the main photo.
 - **🌐 Multilingual Support**: The interface is available in English, Arabic, French, Spanish, Chinese, Hindi, and Bengali, with RTL support. It's also easy to [add your own language](#-adding-a-new-language)!
-- **📦 All-in-One ZIP**: Downloads a single, neatly organized `.zip` file with your selected memories sorted into folders.
+- **🗂️ All-in-One ZIP**: Downloads a single, neatly organized `.zip` file with your selected memories sorted into folders (unless batching is required).
 
 ---
 
@@ -64,6 +65,7 @@ This application is a modern, zoneless Angular web app built with performance an
 
 3.  **Downloading & Processing (`DownloadService`)**:
     - **Concurrent Downloads**: Manages a queue to download multiple files simultaneously (defaulting to 5 workers) for speed.
+    - **Batch Processing**: When a user selects more than 500 memories, the `startDownload` method in `DownloadService` enters "batch mode". It calculates how many ZIP files are needed and processes one batch at a time. After each ZIP file is created and automatically saved to the user's computer, the service pauses briefly before starting the next batch to ensure browser stability. This entire process is managed with clear UI feedback, showing the user which part is currently being processed.
     - **Resilient Fetching**: Includes a retry mechanism with exponential backoff to handle transient network errors.
     - **Format Handling**: It intelligently handles three primary download types from Snapchat:
         1.  **Direct File**: A direct link to a `.jpg` or `.mp4`.
@@ -78,6 +80,50 @@ This application is a modern, zoneless Angular web app built with performance an
     - Files are added one by one as they are downloaded and processed.
     - The final folder structure inside the ZIP (`/2024/United States/`) is determined by this service based on the user's selection.
     - Once complete, it generates a Blob and uses `FileSaver.js` to trigger the download prompt for the user.
+
+---
+
+## 🚀 Running Locally
+
+To run the project locally, you'll need Node.js and the Angular CLI installed.
+
+```bash
+# 1. Install project dependencies
+npm install
+
+# 2. Start the local development server
+npm start
+```
+
+Now, open your browser and navigate to `http://localhost:4200/`.
+
+---
+
+## 🧪 Testing & Development
+
+### Forcing Batch Download Mode
+
+The batch download feature is a critical part of the app's stability, but testing it normally would require a `memories_history.html` file with over 500 entries. To make this easier, a simple developer mode is built-in.
+
+1.  **Open the State Service**:
+    - Navigate to and open the file `src/services/state.service.ts`.
+
+2.  **Enable `DEV_MODE`**:
+    - Near the top of the file, find the `DEV_MODE` constant and set it to `true`.
+
+    ```typescript
+    // --- Developer Mode Configuration ---
+    // Set to `true` to force a smaller batch size for easy testing.
+    const DEV_MODE = true; // Set this to true
+    const DEV_BATCH_SIZE = 10;
+    // ------------------------------------
+    ```
+
+3.  **Test in the App**:
+    - With `DEV_MODE` enabled, the batching threshold is lowered to just **10 memories**.
+    - Now you can upload any memories file, select a year or country with more than 10 memories, and the app will trigger the full batch download UI and logic, creating multiple smaller ZIP files.
+
+**Remember to set `DEV_MODE` back to `false` before deploying to production!**
 
 ---
 
@@ -126,19 +172,3 @@ Adding a new language is simple, as all translations are now stored directly ins
     ```
 
 That's it! The language selector will automatically update to show the new option. No external files are needed.
-
----
-
-## 🚀 Running Locally
-
-To run the project locally, you'll need Node.js and the Angular CLI installed.
-
-```bash
-# 1. Install project dependencies
-npm install
-
-# 2. Start the local development server
-npm start
-```
-
-Now, open your browser and navigate to `http://localhost:4200/`.
