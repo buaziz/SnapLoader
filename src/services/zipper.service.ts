@@ -31,18 +31,18 @@ export class ZipperService {
   private getFilePath(memory: Memory): string {
     const selection = this.stateService.selection();
 
-    // If a selection has been made (by year or country), put all files in a folder named after the selection.
     if (selection) {
-      // FIX: Use the original, untranslated selection key for the folder name
-      // to ensure it is always ASCII-safe and prevent ZIP corruption.
-      const folderName = this.sanitizeForFilename(String(selection));
+      // REVERT: Use the translated selection for the folder name.
+      const translatedSelection = this.translateService.get(String(selection));
+      const folderName = this.sanitizeForFilename(translatedSelection);
       return `${folderName}/${memory.filename}`;
     }
     
-    // Fallback to the original structure if no selection is made (should not happen in normal flow).
+    // Fallback to the original structure if no selection is made.
     const year = memory.date.getFullYear();
-    // FIX: Use the original English country name for the folder.
-    const country = this.sanitizeForFilename(memory.country || 'COUNTRY_UNKNOWN');
+    // REVERT: Use the translated country name for the folder.
+    const translatedCountry = this.translateService.get(memory.country);
+    const country = this.sanitizeForFilename(translatedCountry || 'COUNTRY_UNKNOWN');
     return `${year}/${country}/${memory.filename}`;
   }
 

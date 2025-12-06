@@ -265,14 +265,14 @@ export class DownloadService {
       return this.translateService.get('ZIP_FILENAME_DEFAULT');
     }
 
-    const mode = this.stateService.selectionMode();
-    // FIX: Use the original, untranslated selection key for the filename
-    // to ensure it is always ASCII-safe and prevent download issues.
-    const sanitizedSelection = String(selection)
+    // REVERT: Use the translated name for the filename.
+    const translatedSelection = this.translateService.get(String(selection));
+    const sanitizedSelection = translatedSelection
         .replace(/[\\/?%*:|"<>]/g, '')
-        .replace(/\s+/g, '-')
-        .toLowerCase();
+        .replace(/\s+/g, '-');
 
+    const mode = this.stateService.selectionMode();
+    
     if (batchNum && totalBatches) {
       return this.translateService.get('ZIP_FILENAME_PATTERN_BATCH', {
         mode,
