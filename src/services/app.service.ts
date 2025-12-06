@@ -3,7 +3,7 @@ import { SnapParserService, ParseResult } from './snap-parser.service';
 import { GeocodingService } from './geocoding.service';
 import { StateService, SelectionMode } from './state.service';
 import { DownloadService } from './download.service';
-import { Memory } from '../models';
+import { Memory, Batch } from '../models';
 import { TranslateService } from './translate.service';
 
 declare var saveAs: any;
@@ -92,7 +92,40 @@ export class AppService {
   startDownloadProcess(): void {
     const memoriesToProcess = this.stateService.selectedMemories();
     if (memoriesToProcess.length === 0) return;
-    this.downloadService.startDownload(memoriesToProcess);
+
+    if (this.stateService.isLargeSelection()) {
+      this.downloadService.prepareBatches(memoriesToProcess);
+      this.stateService.status.set('batchControl');
+    } else {
+      this.downloadService.startDownload(memoriesToProcess);
+    }
+  }
+
+  async processBatch(batch: Batch): Promise<void> {
+    await this.downloadService.processBatch(batch);
+  }
+
+  async processAllBatches(): Promise<void> {
+    const plannedBatches = this.stateService.batches().filter(b => b.status === 'planned');
+    for (const batch of plannedBatches) {
+        if (this.stateService.isCancelled()) break;
+        await this.downloadService.processBatch(batch);
+    }
+  }
+
+  downloadProcessedBatch(batch: Batch): void {
+    if (batch.zipBlobUrl && batch.status === 'success') {
+      saveAs(batch.zipBlobUrl, batch.zipFilename);
+    }
+  }
+  
+  async downloadAllSuccessfulBatches(): Promise<void> {
+    const successfulBatches = this.stateService.batches().filter(b => b.status === 'success' && b.zipBlobUrl);
+    for (const batch of successfulBatches) {
+      this.downloadProcessedBatch(batch);
+      // Add a small delay between downloads to prevent the browser from blocking popups
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
   }
 
   setSelectionMode(mode: SelectionMode): void {

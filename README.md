@@ -27,7 +27,7 @@ It's an amazing in-browser IDE that lets you go from a simple idea to a fully fu
 - **🌍 Automatic Geocoding**: Automatically converts GPS coordinates from your memories into country names, allowing you to see where you've been.
 - **📅 Smart Organization**: Choose to group and download your memories by the **year** they were taken or the **country** they were in.
 - **✍️ GPS Data Embedding**: For JPEG images, GPS coordinates are embedded directly into the file's EXIF metadata, making them compatible with photo apps like Google Photos or Apple Photos.
-- **📦 Robust Batch Downloading**: For selections over 500 memories, the app automatically splits the download into smaller, more manageable ZIP files. This prevents browser crashes and ensures a reliable experience for users with huge photo libraries.
+- **💪 User-Controlled Batching**: For large selections (over 500 memories), the app presents a batch control screen. You can process each smaller ZIP file individually or all at once, giving you full control over your browser's memory usage and preventing crashes.
 - **🤖 Intelligent Downloading**:
     - Handles Snapchat's complex download formats, including ZIP archives containing main images and overlays.
     - Automatically merges image overlays (filters, stickers) onto the main photo.
@@ -65,7 +65,7 @@ This application is a modern, zoneless Angular web app built with performance an
 
 3.  **Downloading & Processing (`DownloadService`)**:
     - **Concurrent Downloads**: Manages a queue to download multiple files simultaneously (defaulting to 5 workers) for speed.
-    - **Batch Processing**: When a user selects more than 500 memories, the `startDownload` method in `DownloadService` enters "batch mode". It calculates how many ZIP files are needed and processes one batch at a time. After each ZIP file is created and automatically saved to the user's computer, the service pauses briefly before starting the next batch to ensure browser stability. This entire process is managed with clear UI feedback, showing the user which part is currently being processed.
+    - **Batch Processing**: For large selections, the app no longer processes everything at once. Instead, it transitions to a **Batch Control** screen. Here, the download is pre-calculated and split into manageable parts. The user can then choose to process each part individually or all at once. This user-driven approach prevents the browser from being overwhelmed by creating multiple large ZIP files in memory simultaneously, ensuring a stable experience even with tens of thousands of memories.
     - **Resilient Fetching**: Includes a retry mechanism with exponential backoff to handle transient network errors.
     - **Format Handling**: It intelligently handles three primary download types from Snapchat:
         1.  **Direct File**: A direct link to a `.jpg` or `.mp4`.

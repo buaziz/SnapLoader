@@ -13,6 +13,7 @@ import { ErrorDisplayComponent } from './app/components/error-display/error-disp
 import { DownloadProgressComponent } from './app/components/download-progress/download-progress.component';
 import { YearSummaryComponent } from './app/components/year-summary/year-summary.component';
 import { CountrySummaryComponent } from './app/components/country-summary/country-summary.component';
+import { BatchControlComponent } from './app/components/batch-summary/batch-summary.component';
 
 @Component({
   selector: 'app-root',
@@ -28,6 +29,7 @@ import { CountrySummaryComponent } from './app/components/country-summary/countr
     DownloadProgressComponent,
     YearSummaryComponent,
     CountrySummaryComponent,
+    BatchControlComponent,
     TranslatePipe
   ]
 })

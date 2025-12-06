@@ -1,13 +1,13 @@
 import { Injectable, computed, signal, inject } from '@angular/core';
-import { Memory, YearSummary, CountrySummary } from '../models';
+import { Memory, YearSummary, CountrySummary, Batch } from '../models';
 import { TranslateService } from './translate.service';
 
-export type AppStatus = 'idle' | 'parsing' | 'geocoding' | 'summary' | 'zipping' | 'done' | 'error';
+export type AppStatus = 'idle' | 'parsing' | 'geocoding' | 'summary' | 'zipping' | 'done' | 'error' | 'batchControl';
 export type SelectionMode = 'year' | 'country';
 
 // --- Developer Mode Configuration ---
 // Set to `true` to force a smaller batch size for easy testing.
-const DEV_MODE = false;
+const DEV_MODE = true;
 const DEV_BATCH_SIZE = 10;
 // ------------------------------------
 
@@ -29,6 +29,9 @@ export interface MemoryForDisplay extends Memory {
 export class StateService {
   private translateService = inject(TranslateService);
 
+  // Expose DEV_MODE to components
+  readonly devMode = DEV_MODE;
+
   // Writable State Signals
   status = signal<AppStatus>('idle');
   memories = signal<readonly Memory[]>([]);
@@ -48,6 +51,7 @@ export class StateService {
   isBatchDownload = signal(false);
   totalBatches = signal(0);
   currentBatch = signal(0);
+  batches = signal<Batch[]>([]);
 
   // Computed Signals (Derivations of State)
   isLargeSelection = computed(() => this.selectedTotalMemories() > this.getBatchSize());
@@ -265,6 +269,10 @@ export class StateService {
     this.yearDownloadProgress.update(p => new Map(p).set(year, (p.get(year) || 0) + 1));
     this.yearDownloadSizeProgress.update(s => new Map(s).set(year, (s.get(year) || 0) + fileSize));
   }
+  
+  updateBatch(batchNum: number, updates: Partial<Batch>): void {
+    this.batches.update(batches => batches.map(b => b.batchNum === batchNum ? { ...b, ...updates } : b));
+  }
 
   setSelectionMode(mode: SelectionMode): void {
     if(this.selectionMode() === mode) return;
@@ -292,6 +300,8 @@ export class StateService {
     this.isBatchDownload.set(false);
     this.totalBatches.set(0);
     this.currentBatch.set(0);
+    this.batches().forEach(b => { if (b.zipBlobUrl) URL.revokeObjectURL(b.zipBlobUrl) });
+    this.batches.set([]);
   }
 
   reset(): void {
@@ -308,6 +318,8 @@ export class StateService {
     this.isBatchDownload.set(false);
     this.totalBatches.set(0);
     this.currentBatch.set(0);
+    this.batches().forEach(b => { if (b.zipBlobUrl) URL.revokeObjectURL(b.zipBlobUrl) });
+    this.batches.set([]);
   }
 
   getBatchSize(): number {

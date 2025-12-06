@@ -36,3 +36,12 @@ export interface ParseResult {
   memories: Memory[];
   expiresAt: Date | null;
 }
+
+export interface Batch {
+  batchNum: number;
+  totalBatches: number;
+  memories: readonly Memory[];
+  status: 'planned' | 'processing' | 'success' | 'error';
+  zipFilename: string;
+  zipBlobUrl?: string;
+}

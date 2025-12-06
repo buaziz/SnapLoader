@@ -160,11 +160,12 @@
           @case ('zipping') {
             <app-download-progress (cancel)="appService.cancelDownload()"></app-download-progress>
           }
+          @case ('batchControl') {
+            <app-batch-control></app-batch-control>
+          }
           @case ('done') {
             <app-download-complete 
-              [zipFilename]="stateService.zipFilename()" 
-              [isBatchDownload]="stateService.isBatchDownload()"
-              [totalBatches]="stateService.totalBatches()"
+              [zipFilename]="stateService.zipFilename()"
               (download)="appService.downloadZip()" 
               (startOver)="appService.resetForNewDownload()">
             </app-download-complete>

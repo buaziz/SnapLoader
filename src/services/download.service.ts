@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Memory } from '../models';
+import { Memory, Batch } from '../models';
 import { StateService } from './state.service';
 import { ZipperService } from './zipper.service';
 import { TranslateService } from './translate.service';
@@ -22,65 +22,82 @@ export class DownloadService {
     this.stateService.yearDownloadProgress.set(new Map());
     this.stateService.yearDownloadSizeProgress.set(new Map());
     
-    // Set initial download state for all selected memories
-    this.stateService.memories.update(allMemories => {
-        const selectedIds = new Set(memoriesToProcess.map(m => m.id));
-        return allMemories.map(m => selectedIds.has(m.id)
-            ? { ...m, downloadState: 'pending' as const, downloadProgress: 0, retryCount: 0 }
-            : m
-        );
-    });
+    this._setInitialMemoryState(memoriesToProcess);
 
-    if (this.stateService.isLargeSelection()) {
-      // --- BATCH DOWNLOAD LOGIC ---
-      this.stateService.isBatchDownload.set(true);
-      const batchSize = this.stateService.getBatchSize();
-      const totalBatches = Math.ceil(memoriesToProcess.length / batchSize);
-      this.stateService.totalBatches.set(totalBatches);
-
-      for (let i = 0; i < totalBatches; i++) {
-        if (this.stateService.isCancelled()) break;
-
-        this.stateService.currentBatch.set(i + 1);
-        const batchMemories = memoriesToProcess.slice(i * batchSize, (i + 1) * batchSize);
-        
-        await this.processAndSaveBatch(batchMemories, i + 1, totalBatches);
-        
-        // Brief pause between downloads to prevent browser blocking
-        if (i < totalBatches - 1) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
-        }
-      }
-
-    } else {
-      // --- SINGLE DOWNLOAD LOGIC ---
-      this.stateService.isBatchDownload.set(false);
-      await this.processAndSaveBatch(memoriesToProcess);
-    }
+    this.stateService.isBatchDownload.set(false);
+    const singleBatch: Batch = {
+      batchNum: 1,
+      totalBatches: 1,
+      memories: memoriesToProcess,
+      status: 'processing',
+      zipFilename: this.getZipFilename()
+    };
+    
+    this.stateService.batches.set([singleBatch]); 
+    this.stateService.currentBatch.set(1);
+    this.stateService.totalBatches.set(1);
+    
+    const wasSuccessful = await this.processAndZipSingleBatch(singleBatch);
 
     if (this.stateService.isCancelled()) {
       this.stateService.reset();
-    } else {
+    } else if (wasSuccessful) {
       this.stateService.status.set('done');
+    } else {
+      this.stateService.errorMessage.set(this.translateService.get('ERROR_ZIP_CREATION'));
+      this.stateService.status.set('error');
     }
   }
 
-  private async processAndSaveBatch(
-    memoriesForProcessing: readonly Memory[],
-    batchNum?: number,
-    totalBatches?: number
-  ): Promise<void> {
+  prepareBatches(memoriesToProcess: readonly Memory[]): void {
+    this.stateService.isBatchDownload.set(true);
+    const batchSize = this.stateService.getBatchSize();
+    const totalBatches = Math.ceil(memoriesToProcess.length / batchSize);
+    this.stateService.totalBatches.set(totalBatches);
+
+    const batches: Batch[] = [];
+    for (let i = 0; i < totalBatches; i++) {
+      const batchMemories = memoriesToProcess.slice(i * batchSize, (i + 1) * batchSize);
+      batches.push({
+        batchNum: i + 1,
+        totalBatches: totalBatches,
+        memories: batchMemories,
+        status: 'planned',
+        zipFilename: this.getZipFilename(i + 1, totalBatches)
+      });
+    }
+    this.stateService.batches.set(batches);
+  }
+
+  async processBatch(batch: Batch): Promise<void> {
+    if (this.stateService.isCancelled()) {
+      this.stateService.isCancelled.set(false);
+    }
     
+    // Switch to zipping view if not already there
+    this.stateService.status.set('zipping');
+    this.stateService.currentBatch.set(batch.batchNum);
+    this.stateService.updateBatch(batch.batchNum, { status: 'processing', zipBlobUrl: undefined });
+    
+    this._setInitialMemoryState(batch.memories);
+
+    await this.processAndZipSingleBatch(batch);
+    
+    // After processing, return to the control screen
+    this.stateService.status.set('batchControl');
+  }
+
+  private async processAndZipSingleBatch(batch: Batch): Promise<boolean> {
     this.stateService.progressMessageKey.set('CREATING_ZIP');
     this.stateService.progress.set(0);
     this.zipper.initializeZip();
     
     let completed = 0;
-    const total = memoriesForProcessing.length;
-    const queue = [...memoriesForProcessing];
+    const total = batch.memories.length;
+    const queue = [...batch.memories];
 
     const processMemory = async (memory: Memory) => {
-      this.stateService.updateMemory(memory.id, { downloadState: 'processing', downloadProgress: 0, retryCount: 0 });
+      this.stateService.updateMemory(memory.id, { downloadState: 'processing', downloadProgress: 0 });
       try {
         this.stateService.updateMemory(memory.id, { downloadProgress: 5 });
 
@@ -156,7 +173,8 @@ export class DownloadService {
         this.stateService.updateMemory(memory.id, { downloadState: 'error', downloadProgress: 0 });
       } finally {
         completed++;
-        this.stateService.progress.set(Math.round((completed / total) * 100));
+        const overallProgress = this.stateService.downloadProgressSummary();
+        this.stateService.progress.set(Math.round((overallProgress.completed / overallProgress.total) * 100));
       }
     };
 
@@ -169,30 +187,33 @@ export class DownloadService {
     });
     await Promise.all(workers);
     
-    if (this.stateService.isCancelled()) return;
+    if (this.stateService.isCancelled()) return false;
 
     try {
       this.stateService.progressMessageKey.set('FINALIZING_ZIP');
-      this.setZipFilename(batchNum, totalBatches);
       const blob = await this.zipper.generateZip();
+      const blobUrl = URL.createObjectURL(blob);
 
-      if (batchNum) { // It's a batch download, save automatically
-        saveAs(blob, this.stateService.zipFilename());
-      } else { // It's a single download, prepare for manual click
-        this.stateService.zipBlobUrl.set(URL.createObjectURL(blob));
+      if (this.stateService.isBatchDownload()) {
+        this.stateService.updateBatch(batch.batchNum, { status: 'success', zipBlobUrl: blobUrl });
+      } else {
+        this.stateService.zipFilename.set(batch.zipFilename);
+        this.stateService.zipBlobUrl.set(blobUrl);
       }
+      return true;
     } catch (err) {
-      this.stateService.errorMessage.set(this.translateService.get('ERROR_ZIP_CREATION'));
-      this.stateService.status.set('error');
-      console.error(err);
+      console.error("Error generating ZIP:", err);
+      if (this.stateService.isBatchDownload()) {
+        this.stateService.updateBatch(batch.batchNum, { status: 'error' });
+      }
+      return false;
     }
   }
 
-  private setZipFilename(batchNum?: number, totalBatches?: number): void {
+  private getZipFilename(batchNum?: number, totalBatches?: number): string {
     const selection = this.stateService.selection();
     if (!selection) {
-      this.stateService.zipFilename.set(this.translateService.get('ZIP_FILENAME_DEFAULT'));
-      return;
+      return this.translateService.get('ZIP_FILENAME_DEFAULT');
     }
 
     const mode = this.stateService.selectionMode();
@@ -203,20 +224,28 @@ export class DownloadService {
         .toLowerCase();
 
     if (batchNum && totalBatches) {
-      const filename = this.translateService.get('ZIP_FILENAME_PATTERN_BATCH', {
+      return this.translateService.get('ZIP_FILENAME_PATTERN_BATCH', {
         mode,
         selection: sanitizedSelection,
         current: batchNum,
         total: totalBatches,
       });
-      this.stateService.zipFilename.set(filename);
     } else {
-      const filename = this.translateService.get('ZIP_FILENAME_PATTERN', {
+      return this.translateService.get('ZIP_FILENAME_PATTERN', {
         mode,
         selection: sanitizedSelection
       });
-      this.stateService.zipFilename.set(filename);
     }
+  }
+
+  private _setInitialMemoryState(memoriesToProcess: readonly Memory[]): void {
+     this.stateService.memories.update(allMemories => {
+        const selectedIds = new Set(memoriesToProcess.map(m => m.id));
+        return allMemories.map(m => selectedIds.has(m.id)
+            ? { ...m, downloadState: 'pending' as const, downloadProgress: 0, retryCount: 0 }
+            : m
+        );
+    });
   }
   
   private async _isZipFile(blob: Blob): Promise<boolean> {
