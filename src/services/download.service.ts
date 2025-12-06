@@ -109,8 +109,7 @@ export class DownloadService {
 
         let mainFileBlob: Blob;
         let overlayBlob: Blob | null = null;
-        let finalBlob: Blob;
-
+        
         if (memory.type === 'Image') {
           if (await this._isZipFile(initialBlob)) {
               this.stateService.updateMemory(memory.id, { downloadProgress: 10 });
@@ -121,24 +120,30 @@ export class DownloadService {
               };
 
               const mainFileName = findFile(name => name.endsWith('-main.jpg') || name.endsWith('-main.jpeg'));
-              const overlayFileName = findFile(name => name.endsWith('-overlay.png'));
   
               if (!mainFileName) throw new Error('ZIP archive did not contain a main image file.');
               
               mainFileBlob = await zip.file(mainFileName).async('blob');
               this.stateService.updateMemory(memory.id, { downloadProgress: 30 });
               
-              if (overlayFileName) {
-                  overlayBlob = await zip.file(overlayFileName).async('blob');
-                  this.stateService.updateMemory(memory.id, { downloadProgress: 50 });
+              // --- RESILIENT OVERLAY EXTRACTION ---
+              try {
+                const overlayFileName = findFile(name => name.endsWith('-overlay.png'));
+                if (overlayFileName) {
+                    overlayBlob = await zip.file(overlayFileName).async('blob');
+                    this.stateService.updateMemory(memory.id, { downloadProgress: 50 });
+                }
+              } catch(overlayError) {
+                  console.warn(`Could not extract overlay for ${memory.filename} from ZIP. Proceeding without overlay.`, overlayError);
+                  overlayBlob = null;
               }
+
           } else if (initialBlob.type.includes('application/json')) {
               this.stateService.updateMemory(memory.id, { downloadProgress: 10 });
               const manifest = JSON.parse(await initialBlob.text());
               const mediaList = manifest.Media || manifest.media || [];
               
               const mainMediaEntry = mediaList.find((m: any) => m['Media Type'] === 'PHOTO' || m['Media Type'] === 'VIDEO');
-              const overlayMediaEntry = mediaList.find((m: any) => m['Media Type'] === 'PHOTO_OVERLAY');
   
               if (!mainMediaEntry?.URI) throw new Error('JSON manifest does not contain a valid main media URI.');
   
@@ -148,8 +153,15 @@ export class DownloadService {
               });
               this.stateService.updateMemory(memory.id, { downloadProgress: 50 });
   
-              if (overlayMediaEntry?.URI) {
-                  overlayBlob = await this.fetchWithRetry(overlayMediaEntry.URI, true, `${memory.filename} (overlay)`);
+              // --- RESILIENT OVERLAY FETCHING ---
+              try {
+                const overlayMediaEntry = mediaList.find((m: any) => m['Media Type'] === 'PHOTO_OVERLAY');
+                if (overlayMediaEntry?.URI) {
+                    overlayBlob = await this.fetchWithRetry(overlayMediaEntry.URI, true, `${memory.filename} (overlay)`);
+                }
+              } catch (overlayError) {
+                  console.warn(`Could not fetch overlay for ${memory.filename} from manifest. Proceeding without overlay.`, overlayError);
+                  overlayBlob = null;
               }
           } else {
               mainFileBlob = initialBlob;
@@ -158,11 +170,20 @@ export class DownloadService {
             mainFileBlob = initialBlob;
         }
 
-        this.stateService.updateMemory(memory.id, { downloadProgress: overlayBlob ? 75 : 90 });
-
-        finalBlob = (memory.type === 'Image' && overlayBlob)
-            ? await this._mergeImages(mainFileBlob, overlayBlob)
-            : mainFileBlob;
+        this.stateService.updateMemory(memory.id, { downloadProgress: 75 });
+        
+        let finalBlob: Blob;
+        // --- RESILIENT IMAGE MERGING ---
+        if (memory.type === 'Image' && overlayBlob) {
+          try {
+            finalBlob = await this._mergeImages(mainFileBlob, overlayBlob);
+          } catch (mergeError) {
+            console.warn(`Could not merge overlay for ${memory.filename}. Proceeding with main image only.`, mergeError);
+            finalBlob = mainFileBlob; // Fallback to main image
+          }
+        } else {
+          finalBlob = mainFileBlob;
+        }
         
         this.stateService.updateMemory(memory.id, { downloadProgress: 90 });
         const finalProcessedBlob = await this._embedGpsData(memory, finalBlob);
@@ -245,8 +266,9 @@ export class DownloadService {
     }
 
     const mode = this.stateService.selectionMode();
-    const translatedSelection = this.translateService.get(String(selection));
-    const sanitizedSelection = translatedSelection
+    // FIX: Use the original, untranslated selection key for the filename
+    // to ensure it is always ASCII-safe and prevent download issues.
+    const sanitizedSelection = String(selection)
         .replace(/[\\/?%*:|"<>]/g, '')
         .replace(/\s+/g, '-')
         .toLowerCase();
