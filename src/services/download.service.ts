@@ -4,6 +4,7 @@ import { StateService } from './state.service';
 import { ZipperService } from './zipper.service';
 import { TranslateService } from './translate.service';
 import { ReportService } from './report.service';
+import { LocalStorageService } from './local-storage.service';
 
 declare var piexif: any;
 declare var JSZip: any;
@@ -17,6 +18,7 @@ export class DownloadService {
   private zipper = inject(ZipperService);
   private translateService = inject(TranslateService);
   private reportService = inject(ReportService);
+  private localStorageService = inject(LocalStorageService);
 
   async startDownload(memoriesToProcess: readonly Memory[]): Promise<void> {
     this.stateService.isCancelled.set(false);
@@ -53,7 +55,7 @@ export class DownloadService {
 
   prepareBatches(memoriesToProcess: readonly Memory[]): void {
     this.stateService.isBatchDownload.set(true);
-    const batchSize = this.stateService.getBatchSize();
+    const batchSize = this.stateService.getLargeSelectionThreshold();
     const totalBatches = Math.ceil(memoriesToProcess.length / batchSize);
     this.stateService.totalBatches.set(totalBatches);
 
@@ -191,9 +193,11 @@ export class DownloadService {
         this.zipper.addFile(memory, finalProcessedBlob);
         this.stateService.updateMemory(memory.id, { downloadState: 'success', downloadProgress: 100 });
         this.stateService.updateYearProgress(memory.date.getFullYear(), finalProcessedBlob.size);
+        this.localStorageService.recordSuccess(memory.id);
       } catch (error) {
         console.error(`Error processing memory ${memory.id}:`, error);
         this.stateService.updateMemory(memory.id, { downloadState: 'error', downloadProgress: 0 });
+        this.localStorageService.recordFailure(memory.id);
       } finally {
         completed++;
         const overallProgress = this.stateService.downloadProgressSummary();
@@ -209,6 +213,9 @@ export class DownloadService {
         }
     });
     await Promise.allSettled(workers);
+    
+    // After processing, update the main history state signal for UI reactivity
+    this.stateService.loadHistory(this.stateService.memories());
     
     if (this.stateService.isCancelled()) return false;
 

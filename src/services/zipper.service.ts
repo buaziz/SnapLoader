@@ -31,16 +31,23 @@ export class ZipperService {
   private getFilePath(memory: Memory): string {
     const selection = this.stateService.selection();
 
+    // Handle COUNTRY/YEAR structure for country drill-down
+    if (this.stateService.yearSelectionForCountryActive() && typeof selection === 'string') {
+        const translatedCountry = this.translateService.get(selection);
+        const countryFolder = this.sanitizeForFilename(translatedCountry);
+        const yearFolder = memory.date.getFullYear();
+        return `${countryFolder}/${yearFolder}/${memory.filename}`;
+    }
+
     if (selection) {
-      // REVERT: Use the translated selection for the folder name.
+      // Handle YEAR or COUNTRY structure for simple selections
       const translatedSelection = this.translateService.get(String(selection));
       const folderName = this.sanitizeForFilename(translatedSelection);
       return `${folderName}/${memory.filename}`;
     }
     
-    // Fallback to the original structure if no selection is made.
+    // Fallback to the original structure if no selection is made (should not happen in normal flow).
     const year = memory.date.getFullYear();
-    // REVERT: Use the translated country name for the folder.
     const translatedCountry = this.translateService.get(memory.country);
     const country = this.sanitizeForFilename(translatedCountry || 'COUNTRY_UNKNOWN');
     return `${year}/${country}/${memory.filename}`;

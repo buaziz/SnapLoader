@@ -1,6 +1,7 @@
 import { Injectable, computed, signal, inject } from '@angular/core';
-import { Memory, YearSummary, CountrySummary, Batch } from '../models';
+import { Memory, YearSummary, CountrySummary, Batch, MonthSummary, MemoryHistory } from '../models';
 import { TranslateService } from './translate.service';
+import { LocalStorageService } from './local-storage.service';
 
 export type AppStatus = 'idle' | 'parsing' | 'geocoding' | 'summary' | 'zipping' | 'done' | 'error' | 'batchControl';
 export type SelectionMode = 'year' | 'country';
@@ -9,6 +10,7 @@ export type SelectionMode = 'year' | 'country';
 // Set to `true` to force a smaller batch size for easy testing.
 const DEV_MODE = false;
 const DEV_BATCH_SIZE = 10;
+const PROD_LARGE_SELECTION_THRESHOLD = 500;
 // ------------------------------------
 
 // New interfaces for derived state
@@ -28,6 +30,7 @@ export interface MemoryForDisplay extends Memory {
 @Injectable({ providedIn: 'root' })
 export class StateService {
   private translateService = inject(TranslateService);
+  private localStorageService = inject(LocalStorageService);
 
   // Expose DEV_MODE to components
   readonly devMode = DEV_MODE;
@@ -47,6 +50,17 @@ export class StateService {
   selection = signal<number | string | null>(null);
   isCancelled = signal(false);
 
+  // --- Download History ---
+  memoryHistory = signal<ReadonlyMap<string, MemoryHistory>>(new Map());
+
+  // --- Granular Month Selection State (for a selected Year) ---
+  monthSelectionActive = signal(false);
+  selectedMonths = signal<ReadonlySet<number>>(new Set());
+
+  // --- Granular Year Selection State (for a selected Country) ---
+  yearSelectionForCountryActive = signal(false);
+  selectedYearsForCountry = signal<ReadonlySet<number>>(new Set());
+
   // --- Batch Download State ---
   isBatchDownload = signal(false);
   totalBatches = signal(0);
@@ -54,7 +68,7 @@ export class StateService {
   batches = signal<Batch[]>([]);
 
   // Computed Signals (Derivations of State)
-  isLargeSelection = computed(() => this.selectedTotalMemories() > this.getBatchSize());
+  isLargeSelection = computed(() => this.selectedTotalMemories() > this.getLargeSelectionThreshold());
   
   linkExpirationStatus = computed(() => {
     const expiresAt = this.linksExpireAt();
@@ -75,21 +89,117 @@ export class StateService {
   });
 
   yearSummary = computed<YearSummary[]>(() => {
-    const summary = new Map<number, { images: number; videos: number }>();
+    const summary = new Map<number, { images: number; videos: number; downloaded: number; failed: number }>();
+    const history = this.memoryHistory();
     for (const mem of this.memories()) {
       const year = mem.date.getFullYear();
-      if (!summary.has(year)) summary.set(year, { images: 0, videos: 0 });
+      if (!summary.has(year)) summary.set(year, { images: 0, videos: 0, downloaded: 0, failed: 0 });
+      
       const yearData = summary.get(year)!;
       if (mem.type === 'Image') yearData.images++;
       else yearData.videos++;
+      
+      const memHistory = history.get(mem.id);
+      if (memHistory) {
+        if (memHistory.successCount > 0) yearData.downloaded++;
+        if (memHistory.failCount > 0) yearData.failed++;
+      }
     }
     const progress = this.yearDownloadProgress();
     const sizeProgress = this.yearDownloadSizeProgress();
     return Array.from(summary.entries())
       .map(([year, data]) => ({ 
-          year, ...data, total: data.images + data.videos,
+          year, 
+          images: data.images, 
+          videos: data.videos,
+          total: data.images + data.videos,
+          downloadedCount: data.downloaded,
+          failedCount: data.failed,
           completed: progress.get(year) || 0,
           size: sizeProgress.get(year) || 0
+      }))
+      .sort((a, b) => b.year - a.year);
+  });
+
+  monthSummary = computed<MonthSummary[]>(() => {
+    if (!this.monthSelectionActive() || typeof this.selection() !== 'number') {
+      return [];
+    }
+    const selectedYear = this.selection() as number;
+    const memoriesForYear = this.memories().filter(m => m.date.getFullYear() === selectedYear);
+    const history = this.memoryHistory();
+  
+    const summary = new Map<number, { images: number; videos: number; downloaded: number; failed: number }>();
+    for (const mem of memoriesForYear) {
+      const month = mem.date.getMonth();
+      if (!summary.has(month)) summary.set(month, { images: 0, videos: 0, downloaded: 0, failed: 0 });
+      const monthData = summary.get(month)!;
+      if (mem.type === 'Image') monthData.images++;
+      else monthData.videos++;
+
+      const memHistory = history.get(mem.id);
+      if (memHistory && memHistory.successCount > 0) {
+        monthData.downloaded++;
+      }
+       if (memHistory && memHistory.failCount > 0) {
+        monthData.failed++;
+      }
+    }
+  
+    const monthNames = [
+        'MONTH_JANUARY', 'MONTH_FEBRUARY', 'MONTH_MARCH', 'MONTH_APRIL',
+        'MONTH_MAY', 'MONTH_JUNE', 'MONTH_JULY', 'MONTH_AUGUST',
+        'MONTH_SEPTEMBER', 'MONTH_OCTOBER', 'MONTH_NOVEMBER', 'MONTH_DECEMBER'
+    ];
+  
+    return Array.from(summary.entries())
+      .map(([month, data]) => ({
+          month,
+          monthName: this.translateService.get(monthNames[month]),
+          images: data.images,
+          videos: data.videos,
+          total: data.images + data.videos,
+          downloadedCount: data.downloaded,
+          failedCount: data.failed,
+      }))
+      .sort((a, b) => a.month - b.month);
+  });
+
+  yearSummaryForCountry = computed<YearSummary[]>(() => {
+    if (!this.yearSelectionForCountryActive() || typeof this.selection() !== 'string') {
+      return [];
+    }
+    const selectedCountry = this.selection() as string;
+    const memoriesForCountry = this.memories().filter(m => m.country === selectedCountry);
+    const history = this.memoryHistory();
+
+    const summary = new Map<number, { images: number; videos: number; downloaded: number; failed: number }>();
+    for (const mem of memoriesForCountry) {
+        const year = mem.date.getFullYear();
+        if (!summary.has(year)) summary.set(year, { images: 0, videos: 0, downloaded: 0, failed: 0 });
+        const yearData = summary.get(year)!;
+        if (mem.type === 'Image') yearData.images++;
+        else yearData.videos++;
+
+        const memHistory = history.get(mem.id);
+        if (memHistory && memHistory.successCount > 0) {
+          yearData.downloaded++;
+        }
+        if (memHistory && memHistory.failCount > 0) {
+          yearData.failed++;
+        }
+    }
+
+    return Array.from(summary.entries())
+      .map(([year, data]) => ({
+          year,
+          images: data.images,
+          videos: data.videos,
+          total: data.images + data.videos,
+          downloadedCount: data.downloaded,
+          failedCount: data.failed,
+          completed: 0, // not applicable in this view
+          size: 0 // not applicable in this view
       }))
       .sort((a, b) => b.year - a.year);
   });
@@ -133,9 +243,23 @@ export class StateService {
     const currentSelection = this.selection();
     if (currentSelection === null) return [];
     
-    const mode = this.selectionMode();
     const allMemories = this.memories();
 
+    if (this.monthSelectionActive() && typeof currentSelection === 'number') {
+        const selectedMonthsSet = this.selectedMonths();
+        return allMemories.filter(mem => 
+            mem.date.getFullYear() === currentSelection && selectedMonthsSet.has(mem.date.getMonth())
+        );
+    }
+
+    if (this.yearSelectionForCountryActive() && typeof currentSelection === 'string') {
+        const selectedYearsSet = this.selectedYearsForCountry();
+        return allMemories.filter(mem =>
+            mem.country === currentSelection && selectedYearsSet.has(mem.date.getFullYear())
+        );
+    }
+    
+    const mode = this.selectionMode();
     if (mode === 'year') {
         return allMemories.filter(mem => mem.date.getFullYear() === currentSelection);
     } 
@@ -242,7 +366,7 @@ export class StateService {
             headlineParams = { selection: selectionValue };
         } else { // It's a country
             headlineKey = 'DOWNLOAD_HEADLINE_COUNTRY';
-            headlineParams = { selection: selectionValue };
+            headlineParams = { selection: this.translateService.get(selectionValue) };
         }
     }
 
@@ -261,6 +385,11 @@ export class StateService {
   });
 
   // State Mutation Methods
+  loadHistory(memories: readonly Memory[]): void {
+    const historyMap = this.localStorageService.getHistoryForMemories(memories.map(m => m.id));
+    this.memoryHistory.set(historyMap);
+  }
+
   updateMemory(id: string, updates: Partial<Memory>): void {
     this.memories.update(mems => mems.map(m => m.id === id ? { ...m, ...updates } : m));
   }
@@ -278,10 +407,56 @@ export class StateService {
     if(this.selectionMode() === mode) return;
     this.selectionMode.set(mode);
     this.selection.set(null);
+    this.monthSelectionActive.set(false);
+    this.yearSelectionForCountryActive.set(false);
   }
 
   selectItem(item: number | string): void {
     this.selection.set(item);
+  }
+
+  activateMonthSelection(year: number): void {
+    this.selection.set(year); // Ensure selection is set
+    this.monthSelectionActive.set(true);
+    // Smart pre-selection
+    const undownloadedMonths = this.monthSummary()
+        .filter(month => month.downloadedCount < month.total)
+        .map(month => month.month);
+    this.selectedMonths.set(new Set(undownloadedMonths));
+  }
+
+  activateYearSelectionForCountry(country: string): void {
+    this.selection.set(country); // Ensure selection is set
+    this.yearSelectionForCountryActive.set(true);
+    // Smart pre-selection
+    const undownloadedYears = this.yearSummaryForCountry()
+        .filter(year => year.downloadedCount < year.total)
+        .map(year => year.year);
+    this.selectedYearsForCountry.set(new Set(undownloadedYears));
+  }
+
+  toggleMonth(month: number): void {
+    this.selectedMonths.update(currentSet => {
+      const newSet = new Set(currentSet);
+      if (newSet.has(month)) {
+        newSet.delete(month);
+      } else {
+        newSet.add(month);
+      }
+      return newSet;
+    });
+  }
+
+  toggleYearForCountry(year: number): void {
+    this.selectedYearsForCountry.update(currentSet => {
+      const newSet = new Set(currentSet);
+      if (newSet.has(year)) {
+        newSet.delete(year);
+      } else {
+        newSet.add(year);
+      }
+      return newSet;
+    });
   }
 
   resetForNewDownload(): void {
@@ -302,6 +477,10 @@ export class StateService {
     this.currentBatch.set(0);
     this.batches().forEach(b => { if (b.zipBlobUrl) URL.revokeObjectURL(b.zipBlobUrl) });
     this.batches.set([]);
+    this.monthSelectionActive.set(false);
+    this.selectedMonths.set(new Set());
+    this.yearSelectionForCountryActive.set(false);
+    this.selectedYearsForCountry.set(new Set());
   }
 
   reset(): void {
@@ -320,11 +499,16 @@ export class StateService {
     this.currentBatch.set(0);
     this.batches().forEach(b => { if (b.zipBlobUrl) URL.revokeObjectURL(b.zipBlobUrl) });
     this.batches.set([]);
+    this.monthSelectionActive.set(false);
+    this.selectedMonths.set(new Set());
+    this.yearSelectionForCountryActive.set(false);
+    this.selectedYearsForCountry.set(new Set());
+    this.memoryHistory.set(new Map());
   }
 
-  getBatchSize(): number {
+  getLargeSelectionThreshold(): number {
     if (DEV_MODE) {
-      console.warn(`[Snaploader Dev] DEV_MODE is enabled. Using batch size of ${DEV_BATCH_SIZE}.`);
+      console.warn(`[Snaploader Dev] DEV_MODE is enabled. Using large selection threshold of ${DEV_BATCH_SIZE}.`);
       return DEV_BATCH_SIZE;
     }
 
@@ -348,7 +532,7 @@ export class StateService {
       // Silently fail if URL params are not available (e.g., in some iframe contexts)
     }
 
-    return 500; // Default production value
+    return PROD_LARGE_SELECTION_THRESHOLD; // Default production value
   }
 
   private _getVisualStatus(memory: Memory): VisualStatus {

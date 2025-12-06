@@ -111,31 +111,39 @@
                   </div>
                 </div>
 
-                <div class="mb-6">
-                  <div class="flex border-b border-snap-dark">
-                    <button (click)="appService.setSelectionMode('year')" class="py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200" 
-                            [class]="stateService.selectionMode() === 'year' ? 'border-snap-yellow text-snap-yellow' : 'border-transparent text-zinc-400 hover:text-white'">
-                      {{ 'BY_YEAR' | translate }}
-                    </button>
-                    <button (click)="appService.setSelectionMode('country')" class="py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200"
-                            [class]="stateService.selectionMode() === 'country' ? 'border-snap-yellow text-snap-yellow' : 'border-transparent text-zinc-400 hover:text-white'">
-                      {{ 'BY_COUNTRY' | translate }}
-                    </button>
+                @if (!stateService.monthSelectionActive() && !stateService.yearSelectionForCountryActive()) {
+                  <div class="mb-6">
+                    <div class="flex border-b border-snap-dark">
+                      <button (click)="appService.setSelectionMode('year')" class="py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200" 
+                              [class]="stateService.selectionMode() === 'year' ? 'border-snap-yellow text-snap-yellow' : 'border-transparent text-zinc-400 hover:text-white'">
+                        {{ 'BY_YEAR' | translate }}
+                      </button>
+                      <button (click)="appService.setSelectionMode('country')" class="py-2 px-4 font-semibold -mb-px border-b-2 transition-colors duration-200"
+                              [class]="stateService.selectionMode() === 'country' ? 'border-snap-yellow text-snap-yellow' : 'border-transparent text-zinc-400 hover:text-white'">
+                        {{ 'BY_COUNTRY' | translate }}
+                      </button>
+                    </div>
                   </div>
-                </div>
+                }
 
-                @if (stateService.selectionMode() === 'year') {
-                  <app-year-summary 
-                    [summary]="stateService.yearSummary()" 
-                    [selection]="stateService.selection()" 
-                    (yearSelected)="appService.selectItem($event)">
-                  </app-year-summary>
+                @if (stateService.monthSelectionActive()) {
+                  <app-month-summary></app-month-summary>
+                } @else if (stateService.yearSelectionForCountryActive()) {
+                  <app-year-for-country-summary></app-year-for-country-summary>
                 } @else {
-                  <app-country-summary 
-                    [summary]="stateService.countrySummary()" 
-                    [selection]="stateService.selection()" 
-                    (countrySelected)="appService.selectItem($event)">
-                  </app-country-summary>
+                  @if (stateService.selectionMode() === 'year') {
+                    <app-year-summary 
+                      [summary]="stateService.yearSummary()" 
+                      [selection]="stateService.selection()" 
+                      (yearSelected)="appService.selectItem($event)">
+                    </app-year-summary>
+                  } @else {
+                    <app-country-summary 
+                      [summary]="stateService.countrySummary()" 
+                      [selection]="stateService.selection()" 
+                      (countrySelected)="appService.selectItem($event)">
+                    </app-country-summary>
+                  }
                 }
 
                 <div class="text-center">

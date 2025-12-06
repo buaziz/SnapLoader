@@ -14,6 +14,8 @@ import { DownloadProgressComponent } from './app/components/download-progress/do
 import { YearSummaryComponent } from './app/components/year-summary/year-summary.component';
 import { CountrySummaryComponent } from './app/components/country-summary/country-summary.component';
 import { BatchControlComponent } from './app/components/batch-summary/batch-summary.component';
+import { MonthSummaryComponent } from './app/components/month-summary/month-summary.component';
+import { YearForCountrySummaryComponent } from './app/components/year-for-country-summary/year-for-country-summary.component';
 
 @Component({
   selector: 'app-root',
@@ -30,6 +32,8 @@ import { BatchControlComponent } from './app/components/batch-summary/batch-summ
     YearSummaryComponent,
     CountrySummaryComponent,
     BatchControlComponent,
+    MonthSummaryComponent,
+    YearForCountrySummaryComponent,
     TranslatePipe
   ]
 })

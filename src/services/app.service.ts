@@ -5,6 +5,7 @@ import { StateService, SelectionMode } from './state.service';
 import { DownloadService } from './download.service';
 import { Memory, Batch } from '../models';
 import { TranslateService } from './translate.service';
+import { LocalStorageService } from './local-storage.service';
 
 declare var saveAs: any;
 declare var JSZip: any;
@@ -17,6 +18,7 @@ export class AppService {
   private snapParser = inject(SnapParserService);
   private geocodingService = inject(GeocodingService);
   private translateService = inject(TranslateService);
+  private localStorageService = inject(LocalStorageService);
 
   // Public Methods (Actions) - Delegating to other services
   async onFileSelected(file: File): Promise<void> {
@@ -60,6 +62,10 @@ export class AppService {
         return;
       }
       
+      // Initialize local storage and load history for this dataset
+      await this.localStorageService.init(memories);
+      this.stateService.loadHistory(memories);
+
       this.stateService.status.set('geocoding');
       this.stateService.progressMessageKey.set('GEOCODING_MESSAGE');
       this.stateService.progress.set(0);
@@ -133,9 +139,46 @@ export class AppService {
   }
 
   selectItem(item: number | string): void {
+    // Reset any active drill-down view first
+    this.stateService.monthSelectionActive.set(false);
+    this.stateService.yearSelectionForCountryActive.set(false);
     this.stateService.selectItem(item);
+  
+    const selectionMode = this.stateService.selectionMode();
+    const allMems = this.stateService.memories();
+    const memoriesForSelection = allMems.filter(m => 
+        (selectionMode === 'year' && m.date.getFullYear() === item) ||
+        (selectionMode === 'country' && m.country === item)
+    );
+  
+    // Only drill down for large selections
+    if (memoriesForSelection.length > this.stateService.getLargeSelectionThreshold()) {
+      if (selectionMode === 'year') {
+        this.stateService.activateMonthSelection(item as number);
+      } else if (selectionMode === 'country') {
+        this.stateService.activateYearSelectionForCountry(item as string);
+      }
+    }
+  }
+
+  backToYearView(): void {
+    this.stateService.monthSelectionActive.set(false);
+    this.stateService.selectedMonths.set(new Set());
+  }
+
+  toggleMonth(month: number): void {
+    this.stateService.toggleMonth(month);
   }
   
+  backToCountryView(): void {
+    this.stateService.yearSelectionForCountryActive.set(false);
+    this.stateService.selectedYearsForCountry.set(new Set());
+  }
+
+  toggleYearForCountry(year: number): void {
+    this.stateService.toggleYearForCountry(year);
+  }
+
   downloadZip(): void {
     if (this.stateService.zipBlobUrl()) {
         saveAs(this.stateService.zipBlobUrl(), this.stateService.zipFilename());
@@ -158,6 +201,8 @@ export class AppService {
 
   reset(): void {
     this.stateService.reset();
+    // Also clear any loaded history when doing a full reset
+    this.localStorageService.clearSession();
   }
 
   private handleError(messageKey: string): void {

@@ -22,8 +22,23 @@ export interface YearSummary {
   images: number;
   videos: number;
   total: number;
+  // Session-specific progress (visual)
   completed: number;
   size: number;
+  // Persistent download history
+  downloadedCount: number;
+  failedCount: number;
+}
+
+export interface MonthSummary {
+  month: number; // 0-11 for Date object consistency
+  monthName: string;
+  images: number;
+  videos: number;
+  total: number;
+  // Persistent download history
+  downloadedCount: number;
+  failedCount: number;
 }
 
 export interface CountrySummary {
@@ -44,4 +59,9 @@ export interface Batch {
   status: 'planned' | 'processing' | 'success' | 'error';
   zipFilename: string;
   zipBlobUrl?: string;
+}
+
+export interface MemoryHistory {
+  successCount: number;
+  failCount: number;
 }
