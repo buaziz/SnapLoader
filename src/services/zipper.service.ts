@@ -20,6 +20,14 @@ export class ZipperService {
     this.zip.file(path, data);
   }
 
+  addReportFile(htmlContent: string): void {
+    if (!this.zip) {
+        throw new Error("ZIP instance not initialized.");
+    }
+    // Place the report in the root of the ZIP for easy access.
+    this.zip.file("_Snaploader-Report.html", htmlContent);
+  }
+
   private getFilePath(memory: Memory): string {
     const selection = this.stateService.selection();
 

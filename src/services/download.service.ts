@@ -3,6 +3,7 @@ import { Memory, Batch } from '../models';
 import { StateService } from './state.service';
 import { ZipperService } from './zipper.service';
 import { TranslateService } from './translate.service';
+import { ReportService } from './report.service';
 
 declare var piexif: any;
 declare var JSZip: any;
@@ -15,6 +16,7 @@ export class DownloadService {
   private stateService = inject(StateService);
   private zipper = inject(ZipperService);
   private translateService = inject(TranslateService);
+  private reportService = inject(ReportService);
 
   async startDownload(memoriesToProcess: readonly Memory[]): Promise<void> {
     this.stateService.isCancelled.set(false);
@@ -185,11 +187,37 @@ export class DownloadService {
             if (memory) await processMemory(memory);
         }
     });
-    await Promise.all(workers);
+    await Promise.allSettled(workers);
     
     if (this.stateService.isCancelled()) return false;
 
+    // Get successful and failed memories FOR THIS BATCH to generate a report.
+    const memoryIdsInBatch = new Set(batch.memories.map(m => m.id));
+    const allMemories = this.stateService.memories();
+    
+    const successfulMemories = allMemories.filter(m => 
+      memoryIdsInBatch.has(m.id) && m.downloadState === 'success'
+    );
+    const failedMemories = allMemories.filter(m =>
+      memoryIdsInBatch.has(m.id) && m.downloadState === 'error'
+    );
+    const successfulCount = successfulMemories.length;
+
+    if (successfulCount === 0) {
+      console.warn(`No files were processed successfully in batch ${batch.batchNum}. Skipping ZIP generation.`);
+      if (this.stateService.isBatchDownload()) {
+        this.stateService.updateBatch(batch.batchNum, { status: 'error' });
+      }
+      return false; // Indicate batch failure
+    }
+
     try {
+      // Only add a report if there were failures.
+      if (failedMemories.length > 0) {
+        const reportHtml = this.reportService.generateReportHtml(batch, successfulMemories, failedMemories);
+        this.zipper.addReportFile(reportHtml);
+      }
+
       this.stateService.progressMessageKey.set('FINALIZING_ZIP');
       const blob = await this.zipper.generateZip();
       const blobUrl = URL.createObjectURL(blob);
