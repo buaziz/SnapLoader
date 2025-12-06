@@ -383,6 +383,20 @@ export class DownloadService {
     });
   }
 
+  private async _isValidImageBlob(blob: Blob): Promise<boolean> {
+    if (!blob || blob.size === 0) return false;
+    let imageBitmap: ImageBitmap | null = null;
+    try {
+        imageBitmap = await createImageBitmap(blob);
+        return true;
+    } catch (e) {
+        console.warn('Blob validation failed: it could not be decoded as an image.', { blobType: blob.type, blobSize: blob.size });
+        return false;
+    } finally {
+        imageBitmap?.close(); // Release memory
+    }
+  }
+
   private async _embedGpsData(memory: Memory, fileBlob: Blob): Promise<Blob> {
     const { latitude, longitude } = memory.location;
 
@@ -396,12 +410,19 @@ export class DownloadService {
       try {
         const imageWithExif = await this._embedGpsInImage(fileBlob, latitude, longitude, memory.date);
         
-        const originalExtension = memory.filename.split('.').pop()?.toLowerCase() || '';
-        if (originalExtension !== 'jpg' && originalExtension !== 'jpeg') {
-          console.warn(`Correcting file extension for ${memory.filename} to .jpg`);
-          memory.filename = memory.filename.replace(/\.[^/.]+$/, ".jpg");
+        // --- NEW VALIDATION STEP ---
+        if (await this._isValidImageBlob(imageWithExif)) {
+            const originalExtension = memory.filename.split('.').pop()?.toLowerCase() || '';
+            if (originalExtension !== 'jpg' && originalExtension !== 'jpeg') {
+              console.warn(`Correcting file extension for ${memory.filename} to .jpg`);
+              memory.filename = memory.filename.replace(/\.[^/.]+$/, ".jpg");
+            }
+            return imageWithExif;
+        } else {
+            console.warn(`EXIF embedding for ${memory.filename} resulted in a corrupt image. Proceeding with original file (no GPS data).`);
+            return fileBlob; // Fallback to the original, safe blob
         }
-        return imageWithExif;
+
       } catch (error) {
         console.error(`Could not embed EXIF data in ${memory.filename}. Proceeding without metadata.`, error);
       }
