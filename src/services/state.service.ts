@@ -7,7 +7,7 @@ export type SelectionMode = 'year' | 'country';
 
 // --- Developer Mode Configuration ---
 // Set to `true` to force a smaller batch size for easy testing.
-const DEV_MODE = true;
+const DEV_MODE = false;
 const DEV_BATCH_SIZE = 10;
 // ------------------------------------
 
