@@ -1,0 +1,84 @@
+<div class="text-center flex flex-col items-center justify-center p-4">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-24 h-24 text-snap-yellow mx-auto mb-4">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.898 20.572 16.5 21.75l-.398-1.178a3.375 3.375 0 0 0-2.456-2.456L12.5 18l1.178-.398a3.375 3.375 0 0 0 2.456-2.456L16.5 14.25l.398 1.178a3.375 3.375 0 0 0 2.456 2.456L20.25 18l-1.178.398a3.375 3.375 0 0 0-2.456 2.456Z" />
+    </svg>
+
+    <h2 class="text-3xl font-bold text-white mb-2">{{ 'BATCH_CONTROL_TITLE' | translate }}</h2>
+    <p class="text-zinc-400 mb-8 max-w-lg" [innerHTML]="'BATCH_CONTROL_SUBTITLE' | translate:{count: stateService.totalBatches()}"></p>
+
+    <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 w-full max-w-lg">
+      @let planned = plannedBatches();
+      @if (planned.length > 0) {
+        <button (click)="processAll()" 
+                [disabled]="isAnyProcessing()"
+                class="w-full bg-snap-dark hover:bg-black/50 text-white font-bold py-4 px-8 text-lg rounded-full shadow-lg transition-all duration-200 hover:scale-105 disabled:bg-snap-gray disabled:text-zinc-500 disabled:cursor-not-allowed disabled:scale-100">
+          {{ 'PROCESS_ALL_BUTTON' | translate:{count: planned.length} }}
+        </button>
+      }
+      
+      @let successful = successfulBatches();
+      @if (successful.length > 0) {
+        <button (click)="downloadAll()" 
+                [disabled]="isAnyProcessing()"
+                class="w-full bg-snap-yellow hover:bg-opacity-90 text-black font-bold py-4 px-8 text-lg rounded-full shadow-lg transition-all duration-200 hover:scale-105 disabled:bg-snap-gray disabled:text-zinc-500 disabled:cursor-not-allowed disabled:scale-100">
+          {{ 'DOWNLOAD_ALL_BUTTON' | translate:{count: successful.length} }}
+        </button>
+      }
+    </div>
+
+    <div class="w-full max-w-2xl bg-snap-dark p-4 rounded-2xl border border-snap-gray">
+        <div class="max-h-80 overflow-y-auto pr-2">
+          @for (batch of stateService.batches(); track batch.batchNum) {
+            <div class="p-3 rounded-lg mb-2 bg-snap-gray/50 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div class="flex-grow text-center sm:text-left">
+                    <p class="font-semibold text-white">{{ 'PART_STATUS_LABEL' | translate:{current: batch.batchNum, total: batch.totalBatches} }}</p>
+                    <p class="text-xs font-mono text-zinc-400 truncate" [title]="batch.zipFilename">{{ batch.zipFilename }}</p>
+                </div>
+                <div class="flex-shrink-0 flex items-center gap-3">
+                    @switch (batch.status) {
+                        @case ('success') {
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-green-500/20 px-3 py-1 text-sm font-semibold text-green-400">
+                                <span class="h-1.5 w-1.5 rounded-full bg-green-400"></span>
+                                {{ 'STATUS_LABEL_SUCCESS' | translate }}
+                            </span>
+                            <button (click)="download(batch)" [disabled]="isAnyProcessing()" class="bg-snap-dark hover:bg-black/50 text-white font-semibold py-1.5 px-4 rounded-full text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {{ 'DOWNLOAD_BUTTON' | translate }}
+                            </button>
+                        }
+                        @case ('error') {
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-500/20 px-3 py-1 text-sm font-semibold text-red-400">
+                                <span class="h-1.5 w-1.5 rounded-full bg-red-400"></span>
+                                {{ 'STATUS_LABEL_FAILED' | translate }}
+                            </span>
+                            <button (click)="process(batch)" [disabled]="isAnyProcessing()" class="bg-snap-dark hover:bg-black/50 text-white font-semibold py-1.5 px-4 rounded-full text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {{ 'RETRY_BUTTON' | translate }}
+                            </button>
+                        }
+                        @case ('processing') {
+                             <span class="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/20 px-3 py-1 text-sm font-semibold text-yellow-400">
+                                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                {{ 'STATUS_LABEL_PROCESSING' | translate }}
+                            </span>
+                        }
+                        @case ('planned') {
+                            <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-500/20 px-3 py-1 text-sm font-semibold text-sky-400">
+                                <span class="h-1.5 w-1.5 rounded-full bg-sky-400"></span>
+                                {{ 'STATUS_LABEL_PLANNED' | translate }}
+                            </span>
+                            <button (click)="process(batch)" [disabled]="isAnyProcessing()" class="bg-snap-dark hover:bg-black/50 text-white font-semibold py-1.5 px-4 rounded-full text-sm transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {{ 'PROCESS_BUTTON' | translate }}
+                            </button>
+                        }
+                    }
+                </div>
+            </div>
+          }
+        </div>
+    </div>
+    
+    <div class="mt-8">
+        <button (click)="startOver()" [disabled]="isAnyProcessing()" class="bg-snap-dark hover:bg-black/50 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+            {{ 'COMPLETE_START_OVER_BUTTON' | translate }}
+        </button>
+    </div>
+</div>

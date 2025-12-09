@@ -1,0 +1,16 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-snap-ghost text-black font-sans antialiased;
+    }
+
+    /* Dark mode support if system prefers */
+    @media (prefers-color-scheme: dark) {
+        body {
+            @apply bg-black text-white;
+        }
+    }
+}

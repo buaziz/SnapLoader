@@ -1,0 +1,54 @@
+<div class="bg-snap-dark p-4 rounded-2xl border border-snap-gray mb-8">
+  <div class="flex items-center justify-between mb-3">
+      <h3 class="font-bold text-snap-yellow text-lg">{{ 'YEAR_SELECT_FOR_COUNTRY_TITLE' | translate:{country: countryName | translate} }}</h3>
+      <button (click)="appService.backToCountryView()" class="text-sm text-zinc-400 hover:text-white transition-colors flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" class="w-4 h-4">
+          <path fill-rule="evenodd" d="M14 8a.75.75 0 0 1-.75.75H4.56l3.22 3.22a.75.75 0 1 1-1.06 1.06l-4.5-4.5a.75.75 0 0 1 0-1.06l4.5-4.5a.75.75 0 0 1 1.06 1.06L4.56 7.25H13.25A.75.75 0 0 1 14 8Z" clip-rule="evenodd" />
+        </svg>
+        <span>{{ 'BACK_TO_COUNTRIES' | translate }}</span>
+      </button>
+  </div>
+  <div class="max-h-64 overflow-y-auto pr-2">
+      <table class="w-full text-start">
+        <thead>
+          <tr class="border-b border-snap-gray text-sm sm:text-base">
+            <th class="px-1 py-2 sm:p-2 w-10"></th>
+            <th class="px-1 py-2 sm:p-2 font-semibold">{{ 'YEAR_TABLE_HEADER_YEAR' | translate }}</th>
+            <th class="px-1 py-2 sm:p-2 font-semibold text-end">{{ 'YEAR_TABLE_HEADER_PHOTOS' | translate }}</th>
+            <th class="px-1 py-2 sm:p-2 font-semibold text-end">{{ 'YEAR_TABLE_HEADER_VIDEOS' | translate }}</th>
+            <th class="px-1 py-2 sm:p-2 font-semibold text-end">{{ 'YEAR_TABLE_HEADER_TOTAL' | translate }}</th>
+          </tr>
+        </thead>
+        <tbody>
+        @for (item of stateService.yearSummaryForCountry(); track item.year) {
+          @let isComplete = item.downloadedCount === item.total;
+          <tr class="border-b border-snap-gray last:border-b-0 hover:bg-snap-gray/50 cursor-pointer"
+              [class.opacity-60]="isComplete"
+              (click)="appService.toggleYearForCountry(item.year)">
+            <td class="px-1 py-2 sm:p-2">
+                <input type="checkbox" 
+                    class="h-5 w-5 bg-snap-gray border-snap-dark rounded text-snap-yellow focus:ring-snap-yellow focus:ring-2" 
+                    [checked]="isYearSelected(item.year)"
+                    (change)="appService.toggleYearForCountry(item.year)"
+                    (click)="$event.stopPropagation()">
+            </td>
+            <td class="px-1 py-2 sm:p-2 text-base sm:text-lg font-mono">
+              <div class="flex items-center gap-2">
+                <span>{{ item.year }}</span>
+                @if (item.downloadedCount > 0) {
+                  <span class="text-xs font-mono px-2 py-0.5 rounded-full"
+                        [class]="isComplete ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'">
+                    {{ 'DOWNLOAD_HISTORY_NOTE' | translate:{downloaded: item.downloadedCount, total: item.total} }}
+                  </span>
+                }
+              </div>
+            </td>
+            <td class="px-1 py-2 sm:p-2 text-end font-mono">{{ item.images }}</td>
+            <td class="px-1 py-2 sm:p-2 text-end font-mono">{{ item.videos }}</td>
+            <td class="px-1 py-2 sm:p-2 text-end font-bold font-mono">{{ item.total }}</td>
+          </tr>
+        }
+        </tbody>
+      </table>
+  </div>
+</div>

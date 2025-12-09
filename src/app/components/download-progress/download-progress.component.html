@@ -1,0 +1,101 @@
+<div>
+  @if (stateService.isBatchDownload()) {
+    <h2 class="text-2xl font-semibold text-white text-center mb-4">{{ 'PROCESSING_PART' | translate:{current: stateService.currentBatch(), total: stateService.totalBatches()} }}</h2>
+  } @else {
+    <h2 class="text-2xl font-semibold text-white text-center mb-4">📦 {{ stateService.progressMessageKey() | translate }}</h2>
+  }
+  <div class="w-full bg-snap-dark rounded-full h-4 overflow-hidden mb-2 border border-black/50">
+    <div class="bg-snap-yellow h-4 rounded-full transition-all duration-500" [style.width.%]="stateService.progress()"></div>
+  </div>
+  <p class="text-center mb-6 text-snap-yellow font-mono text-lg">{{ stateService.progress() }}%</p>
+
+  @let summary = stateService.downloadProgressSummary();
+  <div class="my-8">
+    <h3 class="text-xl font-semibold text-zinc-300 mb-4 text-center">{{ summary.headlineKey | translate:summary.headlineParams }}</h3>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+      <div class="bg-snap-dark border border-snap-gray p-3 rounded-xl">
+        <p class="text-2xl md:text-3xl font-bold text-green-400">{{ summary.completed }}</p>
+        <p class="text-xs text-zinc-400">{{ 'PROGRESS_COMPLETED' | translate }}</p>
+      </div>
+      <div class="bg-snap-dark border border-snap-gray p-3 rounded-xl">
+        <p class="text-2xl md:text-3xl font-bold text-yellow-400">{{ summary.pending }}</p>
+        <p class="text-xs text-zinc-400">{{ 'PROGRESS_PENDING' | translate }}</p>
+      </div>
+      <div class="bg-snap-dark border border-snap-gray p-3 rounded-xl">
+        <p class="text-2xl md:text-3xl font-bold text-red-500">{{ summary.failed }}</p>
+        <p class="text-xs text-zinc-400">{{ 'PROGRESS_FAILED' | translate }}</p>
+      </div>
+      <div class="bg-snap-dark border border-snap-gray p-3 rounded-xl">
+        <p class="text-2xl md:text-3xl font-bold text-white">{{ summary.total }}</p>
+        <p class="text-xs text-zinc-400">{{ 'PROGRESS_TOTAL' | translate }}</p>
+      </div>
+    </div>
+    @if(summary.totalPhotos > 0 || summary.totalVideos > 0) {
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+        @if(summary.totalPhotos > 0) {
+          <div class="bg-snap-dark border border-snap-gray p-4 rounded-xl">
+              <div class="flex justify-between items-baseline mb-1">
+                  <h4 class="font-semibold text-zinc-300">{{ 'PHOTOS' | translate }}</h4>
+                  <span class="text-sm font-mono text-zinc-400">{{ summary.completedPhotos }} / {{ summary.totalPhotos }}</span>
+              </div>
+              <div class="w-full bg-snap-gray rounded-full h-2.5">
+                  <div class="bg-green-500 h-2.5 rounded-full transition-all duration-300" [style.width.%]="(summary.completedPhotos / (summary.totalPhotos || 1)) * 100"></div>
+              </div>
+          </div>
+        }
+        @if(summary.totalVideos > 0) {
+          <div class="bg-snap-dark border border-snap-gray p-4 rounded-xl">
+              <div class="flex justify-between items-baseline mb-1">
+                  <h4 class="font-semibold text-zinc-300">{{ 'VIDEOS' | translate }}</h4>
+                  <span class="text-sm font-mono text-zinc-400">{{ summary.completedVideos }} / {{ summary.totalVideos }}</span>
+              </div>
+              <div class="w-full bg-snap-gray rounded-full h-2.5">
+                  <div class="bg-green-500 h-2.5 rounded-full transition-all duration-300" [style.width.%]="(summary.completedVideos / (summary.totalVideos || 1)) * 100"></div>
+              </div>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <div class="text-center mb-8">
+    <button (click)="cancel.emit()" class="bg-snap-dark hover:bg-black/50 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200">
+      {{ 'CANCEL' | translate }}
+    </button>
+  </div>
+
+  <div class="bg-snap-dark p-4 rounded-2xl border border-snap-gray">
+    <h3 class="font-bold text-snap-yellow mb-3 text-lg">{{ 'PROGRESS_PROCESSING_FILES' | translate }}</h3>
+    <div class="max-h-[36rem] overflow-y-auto pr-2">
+      @for (memory of stateService.sortedMemoriesForDisplay(); track memory.id) {
+        <div class="p-3 rounded-lg mb-2 bg-snap-gray/50 border border-transparent">
+          <div class="flex items-center justify-between mb-2">
+            <div class="flex items-center min-w-0">
+              @if (memory.type === 'Image') {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-zinc-400 flex-shrink-0"><path fill-rule="evenodd" d="M1 5.25A2.25 2.25 0 0 1 3.25 3h13.5A2.25 2.25 0 0 1 19 5.25v9.5A2.25 2.25 0 0 1 16.75 17H3.25A2.25 2.25 0 0 1 1 14.75v-9.5Zm1.5 5.81v3.69c0 .414.336.75.75.75h13.5a.75.75 0 0 0 .75-.75v-2.438l-4.28-4.28a.75.75 0 0 0-1.06 0l-4.94 4.94a.75.75 0 0 1-1.06 0l-2.22-2.22a.75.75 0 0 0-1.06 0L2.5 11.06Z" clip-rule="evenodd" /></svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="w-5 h-5 text-zinc-400 flex-shrink-0"><path d="M3.5 2.75a.75.75 0 0 0-1.5 0v14.5a.75.75 0 0 0 1.5 0V2.75Z" /><path d="M6.5 5.75a.75.75 0 0 0-1.5 0v8.5a.75.75 0 0 0 1.5 0V5.75Z" /><path d="M9.5 7.75a.75.75 0 0 0-1.5 0v4.5a.75.75 0 0 0 1.5 0V7.75Z" /><path d="M12.5 5.75a.75.75 0 0 0-1.5 0v8.5a.75.75 0 0 0 1.5 0V5.75Z" /><path d="M15.5 2.75a.75.75 0 0 0-1.5 0v14.5a.75.75 0 0 0 1.5 0V2.75Z" /></svg>
+              }
+              <span class="text-sm font-mono text-zinc-300 truncate ml-3" title="{{memory.filename}}">{{memory.filename}}</span>
+            </div>
+          </div>
+          <div class="flex items-center text-xs font-semibold" [class]="memory.visualStatus.colorClass">
+            {{ memory.visualStatus.textKey | translate:memory.visualStatus.textParams }}
+          </div>
+          @if(memory.visualStatus.showProgressBar) {
+            <div class="w-full bg-snap-dark rounded-full h-1.5 mt-1.5">
+              <div class="h-1.5 rounded-full transition-all duration-150" [class]="memory.visualStatus.bgClass"
+                    [style.width.%]="memory.visualStatus.progress"></div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+  
+  <div class="text-center mt-8">
+    <button (click)="cancel.emit()" class="bg-snap-dark hover:bg-black/50 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200">
+      {{ 'CANCEL' | translate }}
+    </button>
+  </div>
+</div>
