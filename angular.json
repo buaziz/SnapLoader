@@ -29,7 +29,8 @@
             ],
             "allowedCommonJsDependencies": [
               "jszip",
-              "piexifjs"
+              "piexifjs",
+              "mp4box"
             ]
           },
           "configurations": {
