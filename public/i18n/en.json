@@ -296,5 +296,8 @@
   "Yemen": "Yemen",
   "South Africa": "South Africa",
   "Zambia": "Zambia",
-  "Zimbabwe": "Zimbabwe"
+  "Zimbabwe": "Zimbabwe",
+  "BROWSER_WARNING_TITLE": "Limited Browser Detected",
+  "BROWSER_WARNING_DESC": "Your browser does not support streaming ZIP generation. Large collections (500+ memories) may hit memory limits.",
+  "BROWSER_WARNING_TIP": "<strong>Recommended:</strong> Use <strong>Chrome</strong> or <strong>Edge</strong> (version 86+) for unlimited file capacity and better performance."
 }

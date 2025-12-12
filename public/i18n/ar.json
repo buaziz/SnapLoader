@@ -296,5 +296,8 @@
   "Yemen": "اليمن",
   "South Africa": "جنوب أفريقيا",
   "Zambia": "زامبيا",
-  "Zimbabwe": "زيمبابوي"
+  "Zimbabwe": "زيمبابوي",
+  "BROWSER_WARNING_TITLE": "تم اكتشاف متصفح محدود",
+  "BROWSER_WARNING_DESC": "متصفحك لا يدعم إنشاء ملفات ZIP المتدفقة. المجموعات الكبيرة (أكثر من 500 ذكرى) قد تصل إلى حدود الذاكرة.",
+  "BROWSER_WARNING_TIP": "<strong>موصى به:</strong> استخدم <strong>Chrome</strong> أو <strong>Edge</strong> (الإصدار 86+) للحصول على سعة ملفات غير محدودة وأداء أفضل."
 }

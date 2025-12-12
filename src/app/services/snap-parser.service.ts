@@ -37,18 +37,36 @@ export class SnapParserService {
         
         if (!mainUrl || !dateStr || !type || (type !== 'Image' && type !== 'Video')) continue;
 
-        // --- CORRECTED LOGIC ---
+        // --- IMPROVED TIMESTAMP PARSING ---
         // Find the latest timestamp, which represents the CREATION date of the export.
         if (mainIsGet) {
           try {
             const url = new URL(mainUrl);
             const creationTimestamp = url.searchParams.get('ts');
             if (creationTimestamp) {
-                const timestampNum = parseInt(creationTimestamp, 10);
-                if (!isNaN(timestampNum)) {
+                let timestampNum = parseInt(creationTimestamp, 10);
+                if (!isNaN(timestampNum) && timestampNum > 0) {
+                    // Detect if timestamp is in seconds vs milliseconds
+                    // Seconds: 0 to ~2.5 billion (up to year 2050)
+                    // Milliseconds: 1+ trillion (year 2000+)
+                    // Safe threshold: 10 billion
+                    if (timestampNum < 10000000000) {
+                        // Timestamp is in seconds, convert to milliseconds
+                        timestampNum = timestampNum * 1000;
+                    }
+                    
                     const currentCreationDate = new Date(timestampNum);
-                    if (!latestCreationDate || currentCreationDate > latestCreationDate) {
-                        latestCreationDate = currentCreationDate;
+                    
+                    // Sanity check: creation date should be within last 10 years and not in far future
+                    const tenYearsAgo = Date.now() - (10 * 365 * 24 * 60 * 60 * 1000);
+                    const tenYearsFromNow = Date.now() + (10 * 365 * 24 * 60 * 60 * 1000);
+                    
+                    if (currentCreationDate.getTime() > tenYearsAgo && currentCreationDate.getTime() < tenYearsFromNow) {
+                      if (!latestCreationDate || currentCreationDate > latestCreationDate) {
+                          latestCreationDate = currentCreationDate;
+                      }
+                    } else {
+                      console.warn('Parsed creation date is out of valid range (10 years past/future), skipping:', currentCreationDate.toISOString());
                     }
                 }
             }
@@ -91,12 +109,32 @@ export class SnapParserService {
       }
     }
     
-    // --- CORRECTED CALCULATION ---
+    // --- IMPROVED EXPIRATION CALCULATION ---
     // The expiration date is exactly 7 days after the creation date.
     let finalExpiresAt: Date | null = null;
     if (latestCreationDate) {
         const sevenDaysInMillis = 7 * 24 * 60 * 60 * 1000;
         finalExpiresAt = new Date(latestCreationDate.getTime() + sevenDaysInMillis);
+        
+        // Debug logging to catch expiration issues
+        const now = new Date();
+        const daysUntilExpiration = (finalExpiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+        
+        console.log('📅 Link Expiration Info:');
+        console.log('  Export created:', latestCreationDate.toISOString());
+        console.log('  Links expire:', finalExpiresAt.toISOString());
+        console.log('  Current time:', now.toISOString());
+        console.log('  Days until expiration:', daysUntilExpiration.toFixed(2), 'days');
+        
+        if (daysUntilExpiration < 0) {
+          console.warn('⚠️ Links have expired!');
+        } else if (daysUntilExpiration < 1) {
+          console.warn('⚠️ Links expire in less than 24 hours!');
+        } else {
+          console.log('✅ Links are valid');
+        }
+    } else {
+        console.warn('⚠️ Could not determine link expiration date - no creation timestamp found in URLs');
     }
 
     return { memories, expiresAt: finalExpiresAt };

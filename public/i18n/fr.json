@@ -296,5 +296,8 @@
   "Yemen": "Yémen",
   "South Africa": "Afrique du Sud",
   "Zambia": "Zambie",
-  "Zimbabwe": "Zimbabwe"
+  "Zimbabwe": "Zimbabwe",
+  "BROWSER_WARNING_TITLE": "Navigateur limité détecté",
+  "BROWSER_WARNING_DESC": "Votre navigateur ne prend pas en charge la génération ZIP en streaming. Les grandes collections (500+ souvenirs) peuvent atteindre les limites de la mémoire.",
+  "BROWSER_WARNING_TIP": "<strong>Recommandé :</strong> Utilisez <strong>Chrome</strong> ou <strong>Edge</strong> (version 86+) pour une capacité de fichiers illimitée et de meilleures performances."
 }

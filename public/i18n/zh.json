@@ -296,5 +296,8 @@
   "Yemen": "也门",
   "South Africa": "南非",
   "Zambia": "赞比亚",
-  "Zimbabwe": "津巴布韦"
+  "Zimbabwe": "津巴布韦",
+  "BROWSER_WARNING_TITLE": "检测到受限浏览器",
+  "BROWSER_WARNING_DESC": "您的浏览器不支持流式 ZIP 生成。大型集合（500+ 个回忆）可能会达到内存限制。",
+  "BROWSER_WARNING_TIP": "<strong>推荐：</strong>使用 <strong>Chrome</strong> 或 <strong>Edge</strong>（86+ 版本）以获得无限文件容量和更好的性能。"
 }

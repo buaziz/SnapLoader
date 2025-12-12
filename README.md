@@ -25,14 +25,20 @@ Antigravity isn't just a chatbot—it's a pair programmer that can navigate your
 - **🛡️ 100% Private & Secure**: All file parsing, data processing, and geocoding happens client-side. Your data is never uploaded to any server.
 - **📁 Easy File Upload**: Upload your entire Snapchat data export `.zip` file directly. The app automatically finds and parses the `memories_history.html` file for you.
 - **🌍 Automatic Geocoding**: Automatically converts GPS coordinates into country names using a 100% offline, privacy-preserving algorithm.
-- **✍️ GPS Data Embedding**: For JPEG images, GPS coordinates are embedded directly into the file's EXIF metadata, making them compatible with photo apps like Google Photos or Apple Photos.
-- **🧠 Smart Download History**: The app remembers your download progress in your browser's local storage. Previously downloaded years or months are automatically de-selected, making it easy to continue where you left off.
-- **💪 Advanced Controls for Large Collections**: For selections with over 500 memories, the app provides powerful tools like drill-down filtering (by month or year) and user-controlled batching to ensure a smooth and reliable experience.
-- **🤖 Intelligent Downloading**:
-    - Handles Snapchat's complex download formats, including ZIP archives containing main images and overlays.
-    - Automatically merges image overlays (filters, stickers) onto the main photo.
-- **🌐 Multilingual Support**: Fully supports English, Arabic, French, Spanish, Chinese, Hindi, and Bengali, including RTL layouts.
-- **🗂️ Organized ZIP Archives**: Downloads a single, neatly organized `.zip` file with your memories sorted into folders. The structure can even be `COUNTRY/YEAR/` for specific filtered downloads.
+- **✍️ GPS Data Embedding**: For JPEG images, GPS coordinates are embedded directly into the file's EXIF metadata, making them compatible with photo apps like Google Photos or Apple Photos. _Note: MP4 videos do not support client-side GPS embedding due to browser limitations._
+- **🧠 Smart Download History**: The app remembers your download progress in your browser's local storage.
+- **🛡️ Robust Link Validation**: Automatically detects if your Snapchat export links are active or expired, preventing confusing "403 Forbidden" errors before you start.
+- **⚡ Streaming ZIP Generation** (Chrome/Edge): On supported browsers, files stream directly to disk with unlimited capacity and minimal memory usage.
+- **⚠️ Graceful Browser Fallbacks**: Automatically detects unsupported browsers (Firefox/Safari) and provides clear warnings and memory-safe processing limits.
+
+---
+
+## ⚠️ Known Limitations
+
+- **MP4 GPS Metadata**: Due to browser limitations, GPS coordinates cannot be embedded into MP4 video files. Videos are downloaded without location metadata, but the files themselves remain fully playable.
+- **Browser Compatibility**:
+  - **Recommended**: Chrome 86+, Edge 86+, Opera 72+ (Supports Unlimited Streaming)
+  - **Supported**: Firefox, Safari (Limited to ~500MB batches via in-memory processing)
 
 ---
 
@@ -70,33 +76,38 @@ This application is a modern, zoneless Angular web app built with performance an
 
 - **Frontend**: Built with **Angular** using standalone components and **Signals** for reactive state management. Styling is done with **Tailwind CSS**.
 - **State Management (`StateService` & `LocalStorageService`)**:
-    - The `StateService` holds the application's live state in Signals (memories, UI status, user selections). `computed()` signals derive state like yearly/country summaries, making the UI highly reactive and efficient.
-    - The `LocalStorageService` manages persistent state between sessions. It saves a history of downloaded and failed files to the browser's local storage, enabling the "smart pre-selection" feature. This history is versioned and tied to the user's specific data file to prevent conflicts.
+  - The `StateService` holds the application's live state in Signals (memories, UI status, user selections). `computed()` signals derive state like yearly/country summaries, making the UI highly reactive and efficient.
+  - The `LocalStorageService` manages persistent state between sessions. It saves a history of downloaded and failed files to the browser's local storage, enabling the "smart pre-selection" feature. This history is versioned and tied to the user's specific data file to prevent conflicts.
 
 ### The Processing Pipeline
 
 1.  **Parsing (`SnapParserService` & `AppService`)**:
+
     - When a user uploads their Snapchat export, the app first checks if it's a `.zip` file.
     - If it is, it uses `JSZip` to scan the archive for the `memories_history.html` file.
     - The service uses the browser's native `DOMParser` to read the memory data table, extracting the date, media type, location, and download URLs.
     - It also cleverly determines the link expiration date from the download URLs.
 
 2.  **Geocoding (`GeocodingService`)**:
+
     - **Offline & Private**: It uses an offline, in-browser approach. No external API calls are made to determine locations, ensuring 100% privacy.
     - On first use, the app downloads a lightweight GeoJSON file containing the world's country borders. For each memory's GPS coordinate, it performs a fast "point-in-polygon" check locally to find the matching country.
 
 3.  **Downloading & Processing (`DownloadService`)**:
+
     - **Concurrent Downloads**: Manages a queue to download multiple files simultaneously for speed.
     - **Resilient Processing**: Includes a robust retry mechanism and gracefully handles errors with individual files (e.g., a corrupt sticker overlay) without crashing the entire batch.
     - **Format Handling**: It intelligently handles three primary download types from Snapchat:
-        1.  **Direct File**: A direct link to a `.jpg` or `.mp4`.
-        2.  **ZIP Archive**: A link to a `.zip` file containing a `main.jpg` and an `overlay.png`. The service unzips this in-memory and merges the overlay onto the main image using the **Canvas API**.
-        3.  **JSON Manifest**: A link to a `.json` file that contains the *actual* URLs for the media and overlay files.
-    - **Metadata Embedding**: For JPEG images, it uses `piexifjs` to write GPS and date information directly into the EXIF headers.
+      1.  **Direct File**: A direct link to a `.jpg` or `.mp4`.
+      2.  **ZIP Archive**: A link to a `.zip` file containing a `main.jpg` and an `overlay.png`. The service unzips this in-memory and merges the overlay onto the main image using the **Canvas API**.
+      3.  **JSON Manifest**: A link to a `.json` file that contains the _actual_ URLs for the media and overlay files.
+    - **Metadata Embedding**: For JPEG images, it uses `piexifjs` to write GPS and date information directly into the EXIF headers. MP4 videos are processed without metadata embedding due to browser constraints.
+    - **Validation & Safety**: All blobs are validated before adding to the ZIP archive. Memory usage is monitored to prevent browser crashes.
 
 4.  **Zipping (`ZipperService`)**:
-    - Uses `JSZip` to create a `.zip` archive in the browser's memory.
+    - Uses `JSZip` with DEFLATE compression to create a `.zip` archive in the browser's memory.
     - The folder structure inside the ZIP is determined by this service based on the user's selection (e.g., `/2024/United-States/` or `/United-States/2024/`).
+    - Validates the generated ZIP to ensure it's not empty before triggering download.
     - Once complete, it generates a Blob and uses `FileSaver.js` to trigger the download prompt.
 
 ---
@@ -124,9 +135,11 @@ Now, open your browser and navigate to `http://localhost:4200/`.
 The advanced features for large collections (batching, drill-down filtering) are critical but hard to test without a huge memories file. To make this easy, a developer mode is built-in.
 
 1.  **Open the State Service**:
+
     - Navigate to and open the file `src/services/state.service.ts`.
 
 2.  **Enable `DEV_MODE`**:
+
     - Near the top of the file, find the `DEV_MODE` constant and set it to `true`.
 
     ```typescript
@@ -150,11 +163,13 @@ The advanced features for large collections (batching, drill-down filtering) are
 Adding a new language is simple, as all translations are stored in JSON files in `public/i18n/`.
 
 1.  **Create the JSON File**:
+
     - Navigate to `public/i18n/`.
     - Create a new file named with your language code (e.g., `de.json`).
     - Copy the content from `en.json` and translate the values.
 
 2.  **Register the Language**:
+
     - Open `src/app/services/translate.service.ts`.
     - Find the `AVAILABLE_LANGUAGES` constant array and add an entry for your language.
 
