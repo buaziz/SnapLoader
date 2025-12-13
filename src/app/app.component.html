@@ -266,6 +266,7 @@
       } @case ('done') {
       <app-download-complete
         [zipFilename]="stateService.zipFilename()"
+        [streamingUsed]="stateService.streamingUsed()"
         (download)="appService.downloadZip()"
         (startOver)="appService.resetForNewDownload()"
       >

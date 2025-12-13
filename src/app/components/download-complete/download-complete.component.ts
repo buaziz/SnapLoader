@@ -12,12 +12,20 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
       </svg>
       
       <h2 class="text-3xl font-bold text-white mb-2">{{ 'COMPLETE_TITLE' | translate }}</h2>
-      <p class="text-zinc-400 mb-8" [innerHTML]="'COMPLETE_SUBTITLE' | translate:{filename: zipFilename()}"></p>
       
-      <button (click)="download.emit()" 
-              class="w-full max-w-md bg-snap-yellow hover:bg-opacity-90 text-black font-bold py-5 px-12 text-2xl rounded-full shadow-lg transition-transform duration-200 hover:scale-105 mb-12">
-        {{ 'COMPLETE_DOWNLOAD_BUTTON' | translate }}
-      </button>
+      @if (streamingUsed()) {
+        <p class="text-zinc-400 mb-8" [innerHTML]="'COMPLETE_STREAMING_SUBTITLE' | translate:{filename: zipFilename()}"></p>
+        <p class="text-green-400 text-sm mb-8">
+          ✅ {{ 'FILE_SAVED_TO_DISK' | translate }}
+        </p>
+      } @else {
+        <p class="text-zinc-400 mb-8" [innerHTML]="'COMPLETE_SUBTITLE' | translate:{filename: zipFilename()}"></p>
+        
+        <button (click)="download.emit()" 
+                class="w-full max-w-md bg-snap-yellow hover:bg-opacity-90 text-black font-bold py-5 px-12 text-2xl rounded-full shadow-lg transition-transform duration-200 hover:scale-105 mb-12">
+          {{ 'COMPLETE_DOWNLOAD_BUTTON' | translate }}
+        </button>
+      }
       
       <button (click)="startOver.emit()" class="bg-snap-dark hover:bg-black/50 text-white font-semibold py-2 px-6 rounded-full transition-colors duration-200">
         {{ 'COMPLETE_START_OVER_BUTTON' | translate }}
@@ -28,6 +36,7 @@ import { TranslatePipe } from '../../pipes/translate.pipe';
 })
 export class DownloadCompleteComponent {
   zipFilename = input.required<string>();
+  streamingUsed = input<boolean>(false);
   
   download = output<void>();
   startOver = output<void>();

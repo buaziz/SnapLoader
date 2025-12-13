@@ -26,6 +26,11 @@ export class DownloadService {
   private reportService = inject(ReportService);
   private localStorageService = inject(LocalStorageService);
 
+  /** Check if streaming ZIP is available (determines if batch mode is needed) */
+  isStreamingAvailable(): boolean {
+    return this.zipper.supportsStreamingZip();
+  }
+
   async startDownload(memoriesToProcess: readonly Memory[]): Promise<void> {
     this.stateService.isCancelled.set(false);
     this.stateService.status.set('zipping');
@@ -47,7 +52,26 @@ export class DownloadService {
     this.stateService.currentBatch.set(1);
     this.stateService.totalBatches.set(1);
 
-    const wasSuccessful = await this.processAndZipSingleBatch(singleBatch);
+    // CRITICAL FIX: Request file handle IMMEDIATELY (during user gesture)
+    // before any async operations. This prevents SecurityError.
+    let fileHandle: FileSystemFileHandle | null = null;
+    if (this.zipper.supportsStreamingZip()) {
+      try {
+        console.log('🔐 Requesting file save location (must happen during user gesture)...');
+        fileHandle = await this.zipper.requestFileHandle(singleBatch.zipFilename);
+        console.log('✅ File handle obtained successfully');
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') {
+          console.log('User cancelled file save');
+          this.stateService.reset();
+          return;
+        }
+        console.warn('Failed to get file handle, falling back to traditional mode:', error);
+        fileHandle = null; // Fall back to traditional mode
+      }
+    }
+
+    const wasSuccessful = await this.processAndZipSingleBatch(singleBatch, fileHandle);
 
     if (this.stateService.isCancelled()) {
       this.stateService.reset();
@@ -97,7 +121,7 @@ export class DownloadService {
     this.stateService.status.set('batchControl');
   }
 
-  private async processAndZipSingleBatch(batch: Batch): Promise<boolean> {
+  private async processAndZipSingleBatch(batch: Batch, fileHandle: FileSystemFileHandle | null = null): Promise<boolean> {
     this.stateService.progressMessageKey.set('CREATING_ZIP');
     this.stateService.progress.set(0);
     this.zipper.initializeZip();
@@ -273,18 +297,19 @@ export class DownloadService {
 
       this.stateService.progressMessageKey.set('FINALIZING_ZIP');
 
-      // Route to streaming or traditional based on browser capability
-      const supportsStreaming = this.zipper.supportsStreamingZip();
+      // Use streaming if we have a pre-obtained file handle
+      // OR if streaming is supported (for batch mode compatibility)
       let success: boolean;
 
-      if (supportsStreaming) {
-        console.log('⚡ Streaming ZIP mode enabled - unlimited file capacity');
-        success = await this.zipper.generateZipStream(batch.zipFilename);
+      if (fileHandle) {
+        // We already have the file handle (obtained during user gesture)
+        console.log('⚡ Streaming ZIP mode enabled - writing to pre-selected file');
+        success = await this.zipper.generateZipStreamWithHandle(fileHandle);
         
         if (!success) {
-          // User cancelled file picker or permission denied
+          console.error('Failed to write ZIP to file handle');
           if (this.stateService.isBatchDownload()) {
-            this.stateService.updateBatch(batch.batchNum, { status: 'planned' }); // Reset status
+            this.stateService.updateBatch(batch.batchNum, { status: 'error' });
           }
           return false;
         }
@@ -295,9 +320,10 @@ export class DownloadService {
         } else {
           this.stateService.zipFilename.set(batch.zipFilename);
           this.stateService.zipBlobUrl.set(''); // No blob URL in streaming mode
+          this.stateService.streamingUsed.set(true); // File was saved via streaming
         }
       } else {
-        // Traditional mode - JSZip fallback
+        // Traditional mode - JSZip fallback (in-memory generation)
         console.log('📦 Traditional ZIP mode - using in-memory generation');
         const blob = await this.zipper.generateZip();
         
@@ -316,6 +342,7 @@ export class DownloadService {
           this.stateService.zipBlobUrl.set(blobUrl);
         }
       }
+
 
       return true;
     } catch (err) {

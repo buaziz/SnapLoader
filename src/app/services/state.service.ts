@@ -10,6 +10,8 @@ export type SelectionMode = 'year' | 'country';
 // Set to `true` to force a smaller batch size for easy testing.
 const DEV_MODE = false;
 const DEV_BATCH_SIZE = 10;
+// Threshold only applies when streaming ZIP is unavailable (fallback to in-memory ZIP)
+// When streaming works, there are no size limits!
 const PROD_LARGE_SELECTION_THRESHOLD = 500;
 // ------------------------------------
 
@@ -43,6 +45,7 @@ export class StateService {
   errorMessage = signal('');
   zipBlobUrl = signal('');
   zipFilename = signal('snapchat-memories.zip');
+  streamingUsed = signal(false); // Track if file was saved via streaming (no download button needed)
   linksExpireAt = signal<Date | null>(null);
   yearDownloadProgress = signal<ReadonlyMap<number, number>>(new Map());
   yearDownloadSizeProgress = signal<ReadonlyMap<number, number>>(new Map());

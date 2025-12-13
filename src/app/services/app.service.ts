@@ -95,15 +95,28 @@ export class AppService {
     }
   }
 
-  startDownloadProcess(): void {
+  async startDownloadProcess(): Promise<void> {
     const memoriesToProcess = this.stateService.selectedMemories();
     if (memoriesToProcess.length === 0) return;
 
-    if (this.stateService.isLargeSelection()) {
+    // Check if streaming ZIP is available
+    const streamingAvailable = this.downloadService.isStreamingAvailable();
+    
+    // Only use batch mode if:
+    // 1. Streaming is NOT available (must use in-memory ZIP)
+    // 2. AND selection exceeds safe in-memory threshold
+    const needsBatchMode = !streamingAvailable && this.stateService.isLargeSelection();
+    
+    if (needsBatchMode) {
+      // Batch mode: Use traditional in-memory ZIP generation with batches
+      console.log('📦 Batch mode activated - streaming not available, using batches for safety');
       this.downloadService.prepareBatches(memoriesToProcess);
       this.stateService.status.set('batchControl');
     } else {
-      this.downloadService.startDownload(memoriesToProcess);
+      // Single download: 
+      // - If streaming available: no size limit! Download all as one ZIP
+      // - If streaming not available but < threshold: use traditional single ZIP
+      await this.downloadService.startDownload(memoriesToProcess);
     }
   }
 

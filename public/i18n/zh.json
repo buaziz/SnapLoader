@@ -27,6 +27,8 @@
   "VIDEOS": "📹 视频",
   "COMPLETE_TITLE": "全部完成！🎉",
   "COMPLETE_SUBTITLE": "你的回忆已打包在 <code class=\"bg-snap-dark text-snap-yellow rounded px-1.5 py-1 text-sm\">{{filename}}</code> 中，可以下载了！",
+  "COMPLETE_STREAMING_SUBTITLE": "您的回忆已保存到 <code class=\"bg-snap-dark text-snap-yellow rounded px-1.5 py-1 text-sm\">{{filename}}</code>",
+  "FILE_SAVED_TO_DISK": "文件已成功保存到您选择的位置",
   "COMPLETE_DOWNLOAD_BUTTON": "💾 下载 ZIP",
   "COMPLETE_START_OVER_BUTTON": "🔄 重新开始",
   "ERROR_TITLE": "糟糕... 😟",

@@ -27,6 +27,8 @@
   "VIDEOS": "📹 Vidéos",
   "COMPLETE_TITLE": "Terminé ! 🎉",
   "COMPLETE_SUBTITLE": "Vos souvenirs sont emballés dans <code class=\"bg-snap-dark text-snap-yellow rounded px-1.5 py-1 text-sm\">{{filename}}</code> et prêts à partir !",
+  "COMPLETE_STREAMING_SUBTITLE": "Vos souvenirs ont été enregistrés dans <code class=\"bg-snap-dark text-snap-yellow rounded px-1.5 py-1 text-sm\">{{filename}}</code>",
+  "FILE_SAVED_TO_DISK": "Fichier enregistré avec succès à l'emplacement choisi",
   "COMPLETE_DOWNLOAD_BUTTON": "💾 Télécharger le ZIP",
   "COMPLETE_START_OVER_BUTTON": "🔄 Recommencer",
   "ERROR_TITLE": "Oh oh... 😟",

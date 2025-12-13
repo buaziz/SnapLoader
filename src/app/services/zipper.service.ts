@@ -19,7 +19,56 @@ export class ZipperService {
    * Check if browser supports File System Access API for streaming ZIP
    */
   supportsStreamingZip(): boolean {
-    return typeof window !== 'undefined' && 'showSaveFilePicker' in window;
+    try {
+      // Add diagnostic logging to debug why streaming might not work
+      const hasWindow = typeof window !== 'undefined';
+      const hasAPI = hasWindow && 'showSaveFilePicker' in window;
+      const isSecureContext = hasWindow && (window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      
+      console.log('[Streaming ZIP Check]', {
+        hasWindow,
+        hasAPI,
+        isSecureContext,
+        hostname: hasWindow ? window.location.hostname : 'N/A',
+        protocol: hasWindow ? window.location.protocol : 'N/A',
+        userAgent: hasWindow && navigator ? navigator.userAgent.substring(0, 50) + '...' : 'N/A'
+      });
+      
+      // File System Access API requires secure context (HTTPS or localhost)
+      const isSupported = hasWindow && hasAPI && isSecureContext;
+      
+      if (!isSupported) {
+        if (!hasWindow) {
+          console.warn('⚠️ Window object not available');
+        } else if (!hasAPI) {
+          console.warn('⚠️ File System Access API (showSaveFilePicker) not available in this browser');
+          console.warn('   This feature requires Chrome 86+, Edge 86+, or Opera 72+');
+        } else if (!isSecureContext) {
+          console.warn('⚠️ Streaming ZIP requires HTTPS or localhost (current: ' + window.location.protocol + ' on ' + window.location.hostname + ')');
+        }
+      }
+      
+      return isSupported;
+    } catch (e) {
+      console.error('[Streaming ZIP Check Failed]', e);
+      return false;
+    }
+  }
+
+  /**
+   * Request file handle from user IMMEDIATELY during user gesture
+   * MUST be called synchronously on user action (e.g., button click)
+   * to avoid SecurityError
+   */
+  async requestFileHandle(filename: string): Promise<FileSystemFileHandle> {
+    const fileHandle = await (window as any).showSaveFilePicker({
+      suggestedName: filename,
+      types: [{
+        description: 'ZIP Archive',
+        accept: { 'application/zip': ['.zip'] }
+      }]
+    });
+    return fileHandle;
   }
 
   initializeZip(): void {
@@ -133,6 +182,36 @@ export class ZipperService {
       }
       console.error('Failed to stream ZIP:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Generate ZIP using streaming with a pre-obtained file handle
+   * This avoids SecurityError by using file handle from user gesture
+   */
+  async generateZipStreamWithHandle(fileHandle: FileSystemFileHandle): Promise<boolean> {
+    try {
+      // Get writable stream from pre-obtained file handle
+      const writable = await fileHandle.createWritable();
+
+      // Get files for streaming
+      const files = this.getFilesForStreaming();
+      
+      console.log(`Streaming ${files.length} files to pre-selected file...`);
+
+      // Create ZIP stream and pipe to disk
+      const zipStream = downloadZip(files).body;
+      if (!zipStream) {
+        throw new Error('Failed to create ZIP stream');
+      }
+
+      await zipStream.pipeTo(writable);
+      
+      console.log('✅ ZIP streamed successfully to disk - minimal memory usage!');
+      return true;
+    } catch (error) {
+      console.error('Failed to stream ZIP to file handle:', error);
+      return false;
     }
   }
 
