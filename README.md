@@ -105,10 +105,11 @@ This application is a modern, zoneless Angular web app built with performance an
     - **Validation & Safety**: All blobs are validated before adding to the ZIP archive. Memory usage is monitored to prevent browser crashes.
 
 4.  **Zipping (`ZipperService`)**:
-    - Uses `JSZip` with DEFLATE compression to create a `.zip` archive in the browser's memory.
-    - The folder structure inside the ZIP is determined by this service based on the user's selection (e.g., `/2024/United-States/` or `/United-States/2024/`).
-    - Validates the generated ZIP to ensure it's not empty before triggering download.
-    - Once complete, it generates a Blob and uses `FileSaver.js` to trigger the download prompt.
+    - **Streaming Mode** (Chrome 86+, Edge 86+, Opera 72+): Uses the File System Access API with `client-zip` to stream files directly to disk. This enables unlimited file capacity with minimal memory usage—perfect for downloading thousands of memories.
+    - **Traditional Mode** (Fallback for Firefox/Safari): Uses `JSZip` with DEFLATE compression to create the ZIP archive in browser memory. Files are then downloaded using `FileSaver.js`.
+    - The service automatically detects browser capabilities and selects the optimal mode.
+    - The folder structure inside the ZIP is dynamically determined based on your selection (e.g., `/2024/United-States/` or `/United-States/2024/`).
+    - All generated ZIPs are validated to ensure they're not empty before triggering the download.
 
 ---
 
