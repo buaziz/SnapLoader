@@ -421,16 +421,36 @@ export class DownloadService {
             body: parts[1],
             signal: abortController.signal,
           });
+          
+          if (!responseBody.ok) {
+             // If the POST to get the signed URL fails, it's also a fatal error usually
+             clearTimeout(timeoutId);
+             throw new Error(`Failed to get signed URL: ${responseBody.status}`);
+          }
+
           const downloadUrl = await responseBody.text();
           response = await fetch(downloadUrl, { signal: abortController.signal });
         }
 
         clearTimeout(timeoutId);
+
+        // FATAL ERRORS: Do not retry for 403 (Forbidden) or 404 (Not Found)
+        if (response.status === 403 || response.status === 404) {
+          console.warn(`⛔ Fatal error downloading ${filename}: ${response.status}. Skipping retries.`);
+          throw new Error(`Fatal Network Error: ${response.status}`);
+        }
+
         if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
         return await response.blob();
 
-      } catch (error) {
+      } catch (error: any) {
         clearTimeout(timeoutId);
+        
+        // If it was a fatal error we just threw, re-throw it immediately to exit the loop
+        if (error.message && error.message.includes('Fatal Network Error')) {
+          throw error;
+        }
+
         console.warn(`Attempt ${attempt} to download ${filename} failed.`, error);
 
         if (attempt >= MAX_ATTEMPTS) {
