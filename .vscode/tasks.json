@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "⚡ Start Dev Server",
       "type": "npm",
       "script": "start",
       "isBackground": true,
@@ -15,12 +16,53 @@
             "regexp": "(.*?)"
           },
           "endsPattern": {
-            "regexp": "bundle generation complete"
+            "regexp": "Local:.*(http://.*:\\d+)"
           }
         }
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
       }
     },
     {
+      "label": "🔍 Check Node Processes & Ports",
+      "type": "shell",
+      "command": "Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -in 4200,3000,8080,5000,8000} | ForEach-Object { $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; [PSCustomObject]@{ Port=$_.LocalPort; Process=$proc.Name; PID=$_.OwningProcess; Path=$proc.Path } } | Format-Table -AutoSize; Write-Host ''; Write-Host 'All Node processes:' -ForegroundColor Cyan; Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,@{Name='Memory(MB)';Expression={[math]::Round($_.WorkingSet64/1MB,2)}},Path | Format-Table -AutoSize",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "🛑 Kill Process on Port 4200",
+      "type": "shell",
+      "command": "$conn = Get-NetTCPConnection -LocalPort 4200 -State Listen -ErrorAction SilentlyContinue; if ($conn) { $proc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue; Write-Host \"Killing process $($proc.Name) (PID: $($proc.Id)) on port 4200...\" -ForegroundColor Yellow; Stop-Process -Id $proc.Id -Force; Write-Host \"Process killed successfully!\" -ForegroundColor Green } else { Write-Host \"No process found on port 4200\" -ForegroundColor Cyan }",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "new",
+        "showReuseMessage": false,
+        "clear": true
+      }
+    },
+    {
+      "label": "🧪 Run Tests",
       "type": "npm",
       "script": "test",
       "isBackground": true,
@@ -33,9 +75,37 @@
             "regexp": "(.*?)"
           },
           "endsPattern": {
-            "regexp": "bundle generation complete"
+            "regexp": "Waiting for file changes"
           }
         }
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "dedicated",
+        "showReuseMessage": true,
+        "clear": false
+      }
+    },
+    {
+      "label": "📦 Production Build",
+      "type": "npm",
+      "script": "build",
+      "problemMatcher": [
+        "$tsc"
+      ],
+      "group": {
+        "kind": "build",
+        "isDefault": false
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
       }
     }
   ]

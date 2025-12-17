@@ -410,10 +410,12 @@ export class DownloadService {
 
       try {
         let response: Response;
+        let isPostRequest = false;
 
         if (isGetRequest) {
           response = await fetch(url, { signal: abortController.signal });
         } else {
+          isPostRequest = true;
           const parts = url.split('?');
           const responseBody = await fetch(parts[0], {
             method: 'POST',
@@ -422,10 +424,11 @@ export class DownloadService {
             signal: abortController.signal,
           });
           
+          // POST errors should be retried - don't treat as fatal yet
           if (!responseBody.ok) {
-             // If the POST to get the signed URL fails, it's also a fatal error usually
              clearTimeout(timeoutId);
-             throw new Error(`Failed to get signed URL: ${responseBody.status}`);
+             console.warn(`POST request failed with status ${responseBody.status}. Will retry.`);
+             throw new Error(`POST request failed: ${responseBody.status}`);
           }
 
           const downloadUrl = await responseBody.text();
@@ -434,27 +437,31 @@ export class DownloadService {
 
         clearTimeout(timeoutId);
 
-        // FATAL ERRORS: Do not retry for 403 (Forbidden) or 404 (Not Found)
-        if (response.status === 403 || response.status === 404) {
-          console.warn(`⛔ Fatal error downloading ${filename}: ${response.status}. Skipping retries.`);
-          throw new Error(`Fatal Network Error: ${response.status}`);
+        // FATAL ERRORS: Only skip retries for 403/404 on the actual file download
+        // (not on the POST request to get the signed URL)
+        if ((response.status === 403 || response.status === 404) && !isPostRequest) {
+          console.warn(`⛔ Fatal error downloading ${filename}: ${response.status}. Link may be expired. Skipping retries.`);
+          throw new Error(`Fatal Download Error ${response.status}: File not accessible`);
         }
 
-        if (!response.ok) throw new Error(`Network response was not ok: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Network response was not ok: ${response.status}`);
+        }
+        
         return await response.blob();
 
       } catch (error: any) {
         clearTimeout(timeoutId);
         
-        // If it was a fatal error we just threw, re-throw it immediately to exit the loop
-        if (error.message && error.message.includes('Fatal Network Error')) {
+        // Only skip retries for fatal DOWNLOAD errors (not POST errors)
+        if (error.message && error.message.startsWith('Fatal Download Error')) {
           throw error;
         }
 
         console.warn(`Attempt ${attempt} to download ${filename} failed.`, error);
 
         if (attempt >= MAX_ATTEMPTS) {
-          throw new Error(`Failed to download ${filename} after ${MAX_ATTEMPTS} attempts.`);
+          throw new Error(`Failed to download ${filename} after ${MAX_ATTEMPTS} attempts: ${error.message}`);
         }
 
         onRetry?.(attempt);
