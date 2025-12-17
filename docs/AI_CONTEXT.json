@@ -30,7 +30,7 @@
         "build": {
             "@angular/cli": "^21.0.2",
             "@angular/build": "^21.0.2 (esbuild-based)",
-            "pnpm": "latest (package manager)"
+            "pnpm": "10.26.0 (package manager)"
         },
         "styling": {
             "Tailwind CSS": "^3.4.17",
@@ -166,6 +166,16 @@
             "cause": "Snapchat URLs have Expires param in query string",
             "solution": "Parse expiration upfront, validate before download, show warning"
         },
+        "overly403Handling": {
+            "symptom": "All downloads fail with 403 errors even on transient issues",
+            "cause": "Treating ALL 403s (including POST requests) as fatal without retries",
+            "solution": "Only treat 403/404 as fatal on actual file downloads, not POST requests. Allow retries for POST errors. Check isPostRequest flag before skipping retries."
+        },
+        "streamingZipErrors": {
+            "symptom": "writeInfo is not a function - streaming ZIP fails",
+            "cause": "FileSystemWritableFileStream state corruption during pipe operation",
+            "solution": "Add writable.abort() on errors, use pipeTo options {preventCancel:false, preventAbort:false, preventClose:false}, implement automatic fallback to traditional ZIP with file-saver"
+        },
         "browserCrashes": {
             "symptom": "Out of memory on Firefox/Safari with 1000+ files",
             "cause": "In-memory ZIP creation without streaming",
@@ -188,6 +198,10 @@
         }
     },
     "configConstants": {
+        "devServer": {
+            "port": 3300,
+            "note": "Changed from default 4200 to avoid conflicts"
+        },
         "devMode": {
             "location": "src/app/services/state.service.ts",
             "default": "DEV_MODE = false",
@@ -252,7 +266,9 @@
     "lessonsLearned": {
         "mp4GPS": "Impossible in browsers - no atomic write to MP4 box structures. Only JPEG works with piexifjs.",
         "multipleFormats": "Snapchat uses 3 formats (direct, ZIP, JSON). Always detect and handle all.",
-        "streamingZIP": "Chrome/Edge support unlimited via File System Access API. Firefox/Safari need batching.",
+        "streamingZIP": "Chrome/Edge support unlimited via File System Access API. Firefox/Safari need batching. ALWAYS implement fallback to traditional ZIP when streaming fails.",
+        "403ErrorHandling": "CRITICAL: Only treat 403/404 as fatal on actual file downloads (response from fetch(downloadUrl)), NOT on POST requests to get signed URLs. Track isPostRequest flag. Overly aggressive fatal error handling causes 100% failure rate.",
+        "streamFallback": "Streaming ZIP can fail with 'writeInfo is not a function' due to browser bugs. Always catch streaming errors and automatically fall back to traditional JSZip + file-saver. This ensures downloads complete even when File System Access API has issues.",
         "linkExpiration": "Always validate Expires param BEFORE starting downloads. Parse as seconds OR milliseconds (check year < 2000).",
         "signalsVsRxJS": "Signals simpler than RxJS for state. Zero boilerplate, auto-dependency tracking.",
         "blobValidation": "Network errors return empty blobs. Always validate before ZIP addition.",
@@ -287,11 +303,12 @@
         }
     },
     "meta": {
-        "version": "1.1",
+        "version": "1.2",
         "lastUpdated": "2025-12-17",
         "builtWith": "Google Antigravity",
         "originalSize": "43KB markdown",
-        "optimizedSize": "~12KB JSON",
-        "reduction": "~72%"
+        "optimizedSize": "~13KB JSON",
+        "reduction": "~70%",
+        "recentChanges": "Fixed critical 403 error handling bug, added streaming ZIP fallback, migrated to pnpm 10.26.0, changed dev port to 3300"
     }
 }
