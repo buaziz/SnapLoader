@@ -1,0 +1,283 @@
+{
+    "project": {
+        "name": "SnapLoader",
+        "version": "0.0.0",
+        "description": "Privacy-first, 100% client-side web app for downloading, organizing, and enriching Snapchat memories",
+        "liveUrl": "https://snap-loader.vercel.app/",
+        "status": "Production-ready",
+        "builtWith": "Google Antigravity"
+    },
+    "corePurpose": {
+        "problem": "Snapchat exports have expiring links and missing GPS metadata",
+        "solution": "Client-side parsing, downloading, offline geocoding, GPS EXIF embedding, and organized ZIP generation",
+        "keyFeatures": [
+            "100% client-side (zero server uploads)",
+            "Offline country detection via GeoJSON polygons",
+            "GPS metadata for JPEGs (MP4 impossible in browsers)",
+            "Smart download history in localStorage",
+            "Link expiration validation",
+            "Streaming ZIP (Chrome/Edge 86+) or batched (Firefox/Safari)",
+            "Multi-language support (7 languages)",
+            "Responsive UI"
+        ]
+    },
+    "techStack": {
+        "core": {
+            "Angular": "^21.0.0 (zoneless, standalone components, Signals)",
+            "TypeScript": "~5.9.2 (strict mode)",
+            "RxJS": "~7.8.0 (minimal usage, prefer Signals)"
+        },
+        "build": {
+            "@angular/cli": "^21.0.2",
+            "@angular/build": "^21.0.2 (esbuild-based)",
+            "npm": "11.6.2"
+        },
+        "styling": {
+            "Tailwind CSS": "^3.4.17",
+            "PostCSS": "^8.4.38",
+            "Autoprefixer": "^10.4.19"
+        },
+        "libraries": {
+            "JSZip": "^3.10.1 (fallback for Firefox/Safari)",
+            "client-zip": "^2.5.0 (streaming, requires File System Access API)",
+            "file-saver": "^2.0.5",
+            "piexifjs": "^1.0.6 (JPEG EXIF only, MP4 not supported)"
+        },
+        "testing": {
+            "Vitest": "^4.0.8",
+            "jsdom": "^27.1.0"
+        }
+    },
+    "architecture": {
+        "designPatterns": {
+            "zoneless": "Experimental zoneless mode, Signals for reactivity, no Zone.js",
+            "stateMgmt": "Signal-based, no NgRx/Akita, StateService holds all signals",
+            "components": "Standalone components, no NgModules, function-based DI with inject()",
+            "serviceLayer": "AppComponent → StateService → [DownloadService, ZipperService, GeocodingService, SnapParserService]"
+        },
+        "dataFlow": {
+            "upload": "File input → JSZip extract → SnapParser → GeocodingService → StateService.memories signal → UI auto-updates",
+            "download": "Select year/country → StateService signals update → DownloadService → fetch with retry → validate → GPS embed (JPEG only) → ZipperService → streaming or in-memory ZIP"
+        },
+        "directory": {
+            "critical": [
+                "src/app/services/state.service.ts (central state)",
+                "src/app/services/download.service.ts (core download logic)",
+                "src/app/services/zipper.service.ts (streaming + fallback)",
+                "src/app/services/geocoding.service.ts (offline)",
+                "src/app/services/snap-parser.service.ts",
+                "src/app/models.ts (all interfaces)",
+                "public/i18n/ (translation files)"
+            ]
+        }
+    },
+    "storage": {
+        "type": "LocalStorage only, no database",
+        "key": "snaploader-history",
+        "schema": {
+            "version": "app version (from package.json)",
+            "fileHash": "hash of memories_history.html",
+            "history": {
+                "downloaded": [
+                    "array of memory IDs"
+                ],
+                "failed": [
+                    "array of memory IDs"
+                ]
+            }
+        },
+        "notes": "History tied to specific export file via hash. Version mismatch clears history."
+    },
+    "deployment": {
+        "platform": "Vercel",
+        "framework": "Angular (auto-detected)",
+        "buildCommand": "npm run build (ng build --configuration production)",
+        "outputDir": "dist/snaploader/browser",
+        "nodeVersion": "18.x",
+        "envVars": "NONE - 100% client-side",
+        "bundleBudgets": {
+            "initial": "500kB warning, 1MB error",
+            "componentStyle": "4kB warning, 8kB error"
+        },
+        "allowedCommonJS": [
+            "jszip",
+            "piexifjs",
+            "mp4box"
+        ]
+    },
+    "criticalPatterns": {
+        "signals": {
+            "rule": "Use .set() or .update() - NEVER mutate directly",
+            "wrong": "this.memories().push(item)",
+            "correct": "this.memories.update(current => [...current, item])",
+            "readonly": "Use readonly arrays in signals to enforce immutability"
+        },
+        "di": {
+            "rule": "Always use inject() function, NOT constructor injection",
+            "pattern": "private stateService = inject(StateService);"
+        },
+        "async": {
+            "rule": "Always wrap async in try-catch",
+            "pattern": "Retry with exponential backoff (MAX_RETRIES=3, delay*attempt)"
+        },
+        "validation": {
+            "rule": "Always validate blobs before adding to ZIP",
+            "checks": "blob.size > 0 && validMimes.includes(blob.type)"
+        },
+        "i18n": {
+            "rule": "Never hardcode text, always use translateService.get(key)",
+            "location": "public/i18n/*.json"
+        },
+        "naming": {
+            "public": "camelCase",
+            "private": "_camelCase (leading underscore)"
+        }
+    },
+    "browserCompatibility": {
+        "streamingZIP": {
+            "supported": [
+                "Chrome 86+",
+                "Edge 86+",
+                "Opera 72+"
+            ],
+            "fallback": [
+                "Firefox",
+                "Safari"
+            ],
+            "detection": "window.showSaveFilePicker !== undefined"
+        },
+        "strategy": {
+            "chromium": "Streaming to disk via File System Access API (unlimited)",
+            "others": "Auto-batch 500+ files into chunks to prevent crashes"
+        }
+    },
+    "snapchatFormats": {
+        "note": "Three different download formats from Snapchat",
+        "types": [
+            "Direct file: .jpg or .mp4 URL",
+            "ZIP archive: contains main.jpg + overlay.png (merge via Canvas)",
+            "JSON manifest: contains URLs to actual files"
+        ],
+        "handling": "Auto-detect via blob inspection, unzip if needed, merge overlays"
+    },
+    "commonIssues": {
+        "expiredLinks": {
+            "symptom": "403 Forbidden during download",
+            "cause": "Snapchat URLs have Expires param in query string",
+            "solution": "Parse expiration upfront, validate before download, show warning"
+        },
+        "browserCrashes": {
+            "symptom": "Out of memory on Firefox/Safari with 1000+ files",
+            "cause": "In-memory ZIP creation without streaming",
+            "solution": "Auto-batch at 500 files, or use Chrome/Edge for unlimited"
+        },
+        "emptyFiles": {
+            "symptom": "0-byte files in ZIP",
+            "cause": "Validation failed but still added to ZIP",
+            "solution": "Always validate BEFORE zipper.addFile(), early return on failure"
+        },
+        "noGPS": {
+            "symptom": "Location missing in Google Photos",
+            "cause": "EXIF embedding failed or wrong DMS conversion",
+            "solution": "Verify piexifjs usage, check _degToDms() format, JPEG only (PNG/MP4 unsupported)"
+        },
+        "canvasLimit": {
+            "symptom": "High-resolution images fail silently",
+            "cause": "Browser canvas max 4096x4096 or 8192x8192",
+            "solution": "Scale down before canvas operations"
+        }
+    },
+    "configConstants": {
+        "devMode": {
+            "location": "src/app/services/state.service.ts",
+            "default": "DEV_MODE = false",
+            "warning": "MUST be false in production! Lowers threshold to 10 for testing"
+        },
+        "download": {
+            "MAX_RETRIES": 3,
+            "RETRY_DELAY_MS": 1000,
+            "CONCURRENT_DOWNLOADS": 5,
+            "SOFT_MEMORY_LIMIT": "400MB",
+            "HARD_MEMORY_LIMIT": "600MB"
+        },
+        "batching": {
+            "PROD_LARGE_SELECTION_THRESHOLD": 500,
+            "DEV_BATCH_SIZE": 10
+        },
+        "geocoding": {
+            "GEOJSON_URL": "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
+        }
+    },
+    "quickReference": {
+        "commands": {
+            "start": "npm start (dev server on :4200)",
+            "build": "npm run build",
+            "test": "npm test",
+            "watch": "npm run watch"
+        },
+        "setup": [
+            "npm install",
+            "npm start",
+            "Open http://localhost:4200/"
+        ],
+        "tsConfig": {
+            "strict": true,
+            "noImplicitOverride": true,
+            "noImplicitReturns": true,
+            "noFallthroughCasesInSwitch": true
+        }
+    },
+    "criticalReminders": {
+        "never": [
+            "Use constructor-based DI (use inject() instead)",
+            "Mutate Signal values directly (use .set() or .update())",
+            "Hardcode text (use translateService.get(key))",
+            "Attempt MP4 GPS embedding (impossible in browsers)",
+            "Forget to validate blobs (check size > 0)",
+            "Set DEV_MODE = true in production",
+            "Use RxJS for state (prefer Signals)",
+            "Create NgModules (everything standalone)",
+            "Assume direct file URLs (handle ZIP/JSON formats)"
+        ],
+        "always": [
+            "Use inject() function for DI",
+            "Validate blobs before adding to ZIP",
+            "Parse link expiration upfront",
+            "Provide fallback for unsupported browsers",
+            "Use try-catch for all async operations",
+            "Use readonly arrays in Signals",
+            "Check canvas size limits before operations"
+        ]
+    },
+    "lessonsLearned": {
+        "mp4GPS": "Impossible in browsers - no atomic write to MP4 box structures. Only JPEG works with piexifjs.",
+        "multipleFormats": "Snapchat uses 3 formats (direct, ZIP, JSON). Always detect and handle all.",
+        "streamingZIP": "Chrome/Edge support unlimited via File System Access API. Firefox/Safari need batching.",
+        "linkExpiration": "Always validate Expires param BEFORE starting downloads. Parse as seconds OR milliseconds (check year < 2000).",
+        "signalsVsRxJS": "Signals simpler than RxJS for state. Zero boilerplate, auto-dependency tracking.",
+        "blobValidation": "Network errors return empty blobs. Always validate before ZIP addition.",
+        "localStorage": "Smart UX without backend - track history, show completed badges, resume downloads.",
+        "canvasLimits": "Max 4096x4096. Always check and scale before operations."
+    },
+    "externalResources": {
+        "docs": {
+            "Angular Signals": "https://angular.dev/guide/signals",
+            "Standalone Components": "https://angular.dev/guide/components/importing",
+            "Tailwind CSS": "https://tailwindcss.com/docs",
+            "JSZip": "https://stuk.github.io/jszip/",
+            "client-zip": "https://github.com/Touffy/client-zip",
+            "piexifjs": "https://github.com/hMatoba/piexifjs",
+            "File System Access API": "https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API"
+        },
+        "snapchat": "https://support.snapchat.com/en-US/a/download-my-data",
+        "deployment": "https://vercel.com/docs/frameworks/angular"
+    },
+    "meta": {
+        "version": "1.0",
+        "lastUpdated": "2025-12-17",
+        "builtWith": "Google Antigravity",
+        "originalSize": "43KB markdown",
+        "optimizedSize": "~9KB JSON",
+        "reduction": "~79%"
+    }
+}
