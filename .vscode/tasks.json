@@ -4,8 +4,8 @@
   "tasks": [
     {
       "label": "⚡ Start Dev Server",
-      "type": "npm",
-      "script": "start",
+      "type": "shell",
+      "command": "pnpm start",
       "isBackground": true,
       "problemMatcher": {
         "owner": "typescript",
@@ -36,7 +36,7 @@
     {
       "label": "🔍 Check Node Processes & Ports",
       "type": "shell",
-      "command": "Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -in 4200,3000,8080,5000,8000} | ForEach-Object { $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; [PSCustomObject]@{ Port=$_.LocalPort; Process=$proc.Name; PID=$_.OwningProcess; Path=$proc.Path } } | Format-Table -AutoSize; Write-Host ''; Write-Host 'All Node processes:' -ForegroundColor Cyan; Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,@{Name='Memory(MB)';Expression={[math]::Round($_.WorkingSet64/1MB,2)}},Path | Format-Table -AutoSize",
+      "command": "Get-NetTCPConnection -State Listen | Where-Object {$_.LocalPort -in 3300,4200,3000,8080,5000,8000} | ForEach-Object { $proc = Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue; [PSCustomObject]@{ Port=$_.LocalPort; Process=$proc.Name; PID=$_.OwningProcess; Path=$proc.Path } } | Format-Table -AutoSize; Write-Host ''; Write-Host 'All Node processes:' -ForegroundColor Cyan; Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,@{Name='Memory(MB)';Expression={[math]::Round($_.WorkingSet64/1MB,2)}},Path | Format-Table -AutoSize",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -48,9 +48,9 @@
       }
     },
     {
-      "label": "🛑 Kill Process on Port 4200",
+      "label": "🛑 Kill Process on Port 3300",
       "type": "shell",
-      "command": "$conn = Get-NetTCPConnection -LocalPort 4200 -State Listen -ErrorAction SilentlyContinue; if ($conn) { $proc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue; Write-Host \"Killing process $($proc.Name) (PID: $($proc.Id)) on port 4200...\" -ForegroundColor Yellow; Stop-Process -Id $proc.Id -Force; Write-Host \"Process killed successfully!\" -ForegroundColor Green } else { Write-Host \"No process found on port 4200\" -ForegroundColor Cyan }",
+      "command": "$conn = Get-NetTCPConnection -LocalPort 3300 -State Listen -ErrorAction SilentlyContinue; if ($conn) { $proc = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue; Write-Host \"Killing process $($proc.Name) (PID: $($proc.Id)) on port 3300...\" -ForegroundColor Yellow; Stop-Process -Id $proc.Id -Force; Write-Host \"Process killed successfully!\" -ForegroundColor Green } else { Write-Host \"No process found on port 3300\" -ForegroundColor Cyan }",
       "problemMatcher": [],
       "presentation": {
         "echo": true,
@@ -63,8 +63,8 @@
     },
     {
       "label": "🧪 Run Tests",
-      "type": "npm",
-      "script": "test",
+      "type": "shell",
+      "command": "pnpm test",
       "isBackground": true,
       "problemMatcher": {
         "owner": "typescript",
@@ -90,8 +90,8 @@
     },
     {
       "label": "📦 Production Build",
-      "type": "npm",
-      "script": "build",
+      "type": "shell",
+      "command": "pnpm run build",
       "problemMatcher": [
         "$tsc"
       ],

@@ -21,7 +21,7 @@
     ]
   },
   "private": true,
-  "packageManager": "npm@11.6.2",
+  "packageManager": "pnpm@10.26.0",
   "dependencies": {
     "@angular/common": "^21.0.0",
     "@angular/compiler": "^21.0.0",
@@ -41,7 +41,6 @@
     "@angular/cli": "^21.0.2",
     "@angular/compiler-cli": "^21.0.0",
     "@types/file-saver": "^2.0.7",
-    "@types/jszip": "^3.4.0",
     "autoprefixer": "^10.4.19",
     "jsdom": "^27.1.0",
     "postcss": "^8.4.38",

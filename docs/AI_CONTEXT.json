@@ -30,7 +30,7 @@
         "build": {
             "@angular/cli": "^21.0.2",
             "@angular/build": "^21.0.2 (esbuild-based)",
-            "npm": "11.6.2"
+            "pnpm": "latest (package manager)"
         },
         "styling": {
             "Tailwind CSS": "^3.4.17",
@@ -91,7 +91,7 @@
     "deployment": {
         "platform": "Vercel",
         "framework": "Angular (auto-detected)",
-        "buildCommand": "npm run build (ng build --configuration production)",
+        "buildCommand": "pnpm run build (ng build --configuration production)",
         "outputDir": "dist/snaploader/browser",
         "nodeVersion": "18.x",
         "envVars": "NONE - 100% client-side",
@@ -210,15 +210,15 @@
     },
     "quickReference": {
         "commands": {
-            "start": "npm start (dev server on :4200)",
-            "build": "npm run build",
-            "test": "npm test",
-            "watch": "npm run watch"
+            "start": "pnpm start (dev server on :3300)",
+            "build": "pnpm run build",
+            "test": "pnpm test",
+            "watch": "pnpm run watch"
         },
         "setup": [
-            "npm install",
-            "npm start",
-            "Open http://localhost:4200/"
+            "pnpm install",
+            "pnpm start",
+            "Open http://localhost:3300/"
         ],
         "tsConfig": {
             "strict": true,
@@ -272,12 +272,26 @@
         "snapchat": "https://support.snapchat.com/en-US/a/download-my-data",
         "deployment": "https://vercel.com/docs/frameworks/angular"
     },
+    "userPreferences": {
+        "documentation": {
+            "preferredOutput": "chat",
+            "fileCreation": "only when review needed before approval",
+            "rationale": "Reduces file clutter, chat output sufficient for most cases",
+            "guidelines": [
+                "Share test results in chat (don't create test report files)",
+                "Share guides and tutorials in chat (don't create guide MD files)",
+                "Share task flows and workflows in chat (don't create workflow files)",
+                "Only create files when user needs to review content before giving approval",
+                "Exception: Code files, configuration files, and essential project documentation should always be created"
+            ]
+        }
+    },
     "meta": {
-        "version": "1.0",
+        "version": "1.1",
         "lastUpdated": "2025-12-17",
         "builtWith": "Google Antigravity",
         "originalSize": "43KB markdown",
-        "optimizedSize": "~9KB JSON",
-        "reduction": "~79%"
+        "optimizedSize": "~12KB JSON",
+        "reduction": "~72%"
     }
 }

@@ -229,7 +229,7 @@ export class DownloadService {
         // Track cumulative size and check memory limits dynamically
         cumulativeSize += finalProcessedBlob.size;
         const cumulativeMB = (cumulativeSize / (1024 * 1024)).toFixed(2);
-        
+
         if (cumulativeSize > HARD_MEMORY_LIMIT) {
           console.warn(`\n⚠️ MEMORY LIMIT REACHED: ${cumulativeMB} MB downloaded`);
           console.warn(`Processed ${completed + 1}/${total} files in this batch.`);
@@ -305,13 +305,41 @@ export class DownloadService {
         // We already have the file handle (obtained during user gesture)
         console.log('⚡ Streaming ZIP mode enabled - writing to pre-selected file');
         success = await this.zipper.generateZipStreamWithHandle(fileHandle);
-        
+
         if (!success) {
-          console.error('Failed to write ZIP to file handle');
-          if (this.stateService.isBatchDownload()) {
-            this.stateService.updateBatch(batch.batchNum, { status: 'error' });
+          console.warn('⚠️ Streaming ZIP failed - falling back to traditional mode');
+
+          // FALLBACK: Try traditional mode instead
+          try {
+            console.log('📦 Attempting traditional ZIP mode as fallback...');
+            const blob = await this.zipper.generateZip();
+
+            if (!blob || blob.size === 0) {
+              throw new Error('ZIP file generation resulted in a 0-byte file.');
+            }
+
+            console.log(`Successfully created ZIP via fallback: ${batch.zipFilename} (${(blob.size / (1024 * 1024)).toFixed(2)} MB)`);
+
+            // Save using FileSaver instead
+            const { saveAs } = await import('file-saver');
+            saveAs(blob, batch.zipFilename);
+
+            if (this.stateService.isBatchDownload()) {
+              this.stateService.updateBatch(batch.batchNum, { status: 'success', zipBlobUrl: undefined });
+            } else {
+              this.stateService.zipFilename.set(batch.zipFilename);
+              this.stateService.zipBlobUrl.set('');
+              this.stateService.streamingUsed.set(false);
+            }
+
+            return true;
+          } catch (fallbackError) {
+            console.error('❌ Fallback to traditional ZIP also failed:', fallbackError);
+            if (this.stateService.isBatchDownload()) {
+              this.stateService.updateBatch(batch.batchNum, { status: 'error' });
+            }
+            return false;
           }
-          return false;
         }
 
         // For streaming, we don't have a blob URL (file saved directly to disk)
@@ -326,7 +354,7 @@ export class DownloadService {
         // Traditional mode - JSZip fallback (in-memory generation)
         console.log('📦 Traditional ZIP mode - using in-memory generation');
         const blob = await this.zipper.generateZip();
-        
+
         // Final validation of the ZIP file
         if (!blob || blob.size === 0) {
           throw new Error('ZIP file generation resulted in a 0-byte file. Please try again or use smaller batches.');
@@ -423,12 +451,12 @@ export class DownloadService {
             body: parts[1],
             signal: abortController.signal,
           });
-          
+
           // POST errors should be retried - don't treat as fatal yet
           if (!responseBody.ok) {
-             clearTimeout(timeoutId);
-             console.warn(`POST request failed with status ${responseBody.status}. Will retry.`);
-             throw new Error(`POST request failed: ${responseBody.status}`);
+            clearTimeout(timeoutId);
+            console.warn(`POST request failed with status ${responseBody.status}. Will retry.`);
+            throw new Error(`POST request failed: ${responseBody.status}`);
           }
 
           const downloadUrl = await responseBody.text();
@@ -447,12 +475,12 @@ export class DownloadService {
         if (!response.ok) {
           throw new Error(`Network response was not ok: ${response.status}`);
         }
-        
+
         return await response.blob();
 
       } catch (error: any) {
         clearTimeout(timeoutId);
-        
+
         // Only skip retries for fatal DOWNLOAD errors (not POST errors)
         if (error.message && error.message.startsWith('Fatal Download Error')) {
           throw error;
@@ -549,7 +577,7 @@ export class DownloadService {
         return fileBlob;
       }
     }
-    
+
     // MP4 and other formats: return unchanged
     return fileBlob;
   }

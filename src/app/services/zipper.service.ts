@@ -11,7 +11,7 @@ export class ZipperService {
   private zip: any;
   private stateService = inject(StateService);
   private translateService = inject(TranslateService);
-  
+
   // Store blobs for streaming access
   private fileBlobs: Map<string, Blob> = new Map();
 
@@ -24,7 +24,7 @@ export class ZipperService {
       const hasWindow = typeof window !== 'undefined';
       const hasAPI = hasWindow && 'showSaveFilePicker' in window;
       const isSecureContext = hasWindow && (window.isSecureContext || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-      
+
       console.log('[Streaming ZIP Check]', {
         hasWindow,
         hasAPI,
@@ -33,10 +33,10 @@ export class ZipperService {
         protocol: hasWindow ? window.location.protocol : 'N/A',
         userAgent: hasWindow && navigator ? navigator.userAgent.substring(0, 50) + '...' : 'N/A'
       });
-      
+
       // File System Access API requires secure context (HTTPS or localhost)
       const isSupported = hasWindow && hasAPI && isSecureContext;
-      
+
       if (!isSupported) {
         if (!hasWindow) {
           console.warn('⚠️ Window object not available');
@@ -47,7 +47,7 @@ export class ZipperService {
           console.warn('⚠️ Streaming ZIP requires HTTPS or localhost (current: ' + window.location.protocol + ' on ' + window.location.hostname + ')');
         }
       }
-      
+
       return isSupported;
     } catch (e) {
       console.error('[Streaming ZIP Check Failed]', e);
@@ -161,7 +161,7 @@ export class ZipperService {
 
       // Get files for streaming
       const files = this.getFilesForStreaming();
-      
+
       console.log(`Streaming ${files.length} files to disk...`);
 
       // Create ZIP stream and pipe to disk
@@ -171,7 +171,7 @@ export class ZipperService {
       }
 
       await zipStream.pipeTo(writable);
-      
+
       console.log('✅ ZIP streamed successfully to disk - minimal memory usage!');
       return true;
     } catch (error) {
@@ -185,32 +185,74 @@ export class ZipperService {
     }
   }
 
-  /**
-   * Generate ZIP using streaming with a pre-obtained file handle
-   * This avoids SecurityError by using file handle from user gesture
-   */
   async generateZipStreamWithHandle(fileHandle: FileSystemFileHandle): Promise<boolean> {
     try {
+      console.log('📝 Creating writable stream from file handle...');
+
       // Get writable stream from pre-obtained file handle
       const writable = await fileHandle.createWritable();
 
       // Get files for streaming
       const files = this.getFilesForStreaming();
-      
-      console.log(`Streaming ${files.length} files to pre-selected file...`);
 
-      // Create ZIP stream and pipe to disk
-      const zipStream = downloadZip(files).body;
-      if (!zipStream) {
-        throw new Error('Failed to create ZIP stream');
+      if (files.length === 0) {
+        console.error('No files to stream - aborting ZIP generation');
+        await writable.abort();
+        return false;
       }
 
-      await zipStream.pipeTo(writable);
-      
-      console.log('✅ ZIP streamed successfully to disk - minimal memory usage!');
-      return true;
-    } catch (error) {
-      console.error('Failed to stream ZIP to file handle:', error);
+      console.log(`⚡ Streaming ${files.length} files to pre-selected file...`);
+
+      try {
+        // Create ZIP stream
+        const zipStream = downloadZip(files).body;
+        if (!zipStream) {
+          throw new Error('Failed to create ZIP stream from downloadZip');
+        }
+
+        console.log('✅ ZIP stream created, starting pipe to disk...');
+
+        // Stream to disk with proper error handling
+        await zipStream.pipeTo(writable, {
+          // Don't prevent cancellation
+          preventCancel: false,
+          // Don't prevent abort
+          preventAbort: false,
+          // Don't prevent close
+          preventClose: false
+        });
+
+        console.log('✅ ZIP streamed successfully to disk - minimal memory usage!');
+        return true;
+
+      } catch (pipeError) {
+        // If pipe failed, try to abort the writable stream
+        console.error('❌ Pipe operation failed:', pipeError);
+        try {
+          await writable.abort();
+        } catch (abortError) {
+          console.warn('Failed to abort writable stream after pipe error:', abortError);
+        }
+        throw pipeError;
+      }
+
+    } catch (error: any) {
+      console.error('❌ Failed to stream ZIP to file handle:', error);
+
+      // Provide more specific error messages
+      if (error.name === 'AbortError') {
+        console.log('User cancelled the save operation');
+        return false;
+      }
+
+      if (error.message?.includes('writeInfo')) {
+        console.error('⚠️ Stream state error detected. This may be due to:');
+        console.error('   1. Browser bug with FileSystemWritableFileStream');
+        console.error('   2. Concurrent write operations');
+        console.error('   3. Stream already closed/aborted');
+        console.error('   → Recommendation: Use traditional ZIP mode or try again');
+      }
+
       return false;
     }
   }
