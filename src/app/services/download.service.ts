@@ -440,16 +440,23 @@ export class DownloadService {
         let response: Response;
         let isPostRequest = false;
 
+        // Common fetch options for better CDN compatibility (Fix 2)
+        const fetchOptions: RequestInit = {
+          signal: abortController.signal,
+          credentials: 'omit', // Don't send cookies to CDN
+          cache: 'no-store',   // Don't use cached 403 responses
+        };
+
         if (isGetRequest) {
-          response = await fetch(url, { signal: abortController.signal });
+          response = await fetch(url, fetchOptions);
         } else {
           isPostRequest = true;
           const parts = url.split('?');
           const responseBody = await fetch(parts[0], {
+            ...fetchOptions,
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: parts[1],
-            signal: abortController.signal,
           });
 
           // POST errors should be retried - don't treat as fatal yet
@@ -460,15 +467,22 @@ export class DownloadService {
           }
 
           const downloadUrl = await responseBody.text();
-          response = await fetch(downloadUrl, { signal: abortController.signal });
+          // The actual file download after POST - use same options
+          response = await fetch(downloadUrl, fetchOptions);
         }
 
         clearTimeout(timeoutId);
 
-        // FATAL ERRORS: Only skip retries for 403/404 on the actual file download
-        // (not on the POST request to get the signed URL)
-        if ((response.status === 403 || response.status === 404) && !isPostRequest) {
-          console.warn(`⛔ Fatal error downloading ${filename}: ${response.status}. Link may be expired. Skipping retries.`);
+        // FIX 1: Retry 403/404 at least once before treating as fatal
+        // CDNs can return temporary 403s, and retrying often succeeds
+        if (response.status === 403 || response.status === 404) {
+          if (attempt < 2) {
+            // First attempt - retry once more before giving up
+            console.warn(`⚠️ Got ${response.status} for ${filename}. Retrying in case of transient CDN issue...`);
+            throw new Error(`Temporary ${response.status}, will retry`);
+          }
+          // After 2 attempts, treat as permanent failure
+          console.warn(`⛔ Fatal error downloading ${filename}: ${response.status} after ${attempt} attempts. Link may be expired.`);
           throw new Error(`Fatal Download Error ${response.status}: File not accessible`);
         }
 
@@ -481,7 +495,7 @@ export class DownloadService {
       } catch (error: any) {
         clearTimeout(timeoutId);
 
-        // Only skip retries for fatal DOWNLOAD errors (not POST errors)
+        // Only skip retries for fatal DOWNLOAD errors (after we've already retried)
         if (error.message && error.message.startsWith('Fatal Download Error')) {
           throw error;
         }
