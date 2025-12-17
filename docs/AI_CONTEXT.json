@@ -168,8 +168,8 @@
         },
         "overly403Handling": {
             "symptom": "All downloads fail with 403 errors even on transient issues",
-            "cause": "Treating ALL 403s (including POST requests) as fatal without retries",
-            "solution": "Only treat 403/404 as fatal on actual file downloads, not POST requests. Allow retries for POST errors. Check isPostRequest flag before skipping retries."
+            "cause": "Treating ALL 403s as immediately fatal without retries, or CDN returning temporary 403s",
+            "solution": "Retry 403/404 at least once before treating as fatal (attempt < 2). Use fetch options: credentials:'omit', cache:'no-store' to avoid cached 403 responses and prevent cookie issues with CDNs."
         },
         "streamingZipErrors": {
             "symptom": "writeInfo is not a function - streaming ZIP fails",
@@ -267,7 +267,7 @@
         "mp4GPS": "Impossible in browsers - no atomic write to MP4 box structures. Only JPEG works with piexifjs.",
         "multipleFormats": "Snapchat uses 3 formats (direct, ZIP, JSON). Always detect and handle all.",
         "streamingZIP": "Chrome/Edge support unlimited via File System Access API. Firefox/Safari need batching. ALWAYS implement fallback to traditional ZIP when streaming fails.",
-        "403ErrorHandling": "CRITICAL: Only treat 403/404 as fatal on actual file downloads (response from fetch(downloadUrl)), NOT on POST requests to get signed URLs. Track isPostRequest flag. Overly aggressive fatal error handling causes 100% failure rate.",
+        "403ErrorHandling": "CRITICAL: Retry 403/404 at least once before treating as fatal - CDNs often return transient 403s. Use fetch options {credentials:'omit', cache:'no-store'} to prevent cached errors and cookie issues. Only after 2 attempts should 403 be treated as permanent (expired links).",
         "streamFallback": "Streaming ZIP can fail with 'writeInfo is not a function' due to browser bugs. Always catch streaming errors and automatically fall back to traditional JSZip + file-saver. This ensures downloads complete even when File System Access API has issues.",
         "linkExpiration": "Always validate Expires param BEFORE starting downloads. Parse as seconds OR milliseconds (check year < 2000).",
         "signalsVsRxJS": "Signals simpler than RxJS for state. Zero boilerplate, auto-dependency tracking.",
@@ -303,12 +303,12 @@
         }
     },
     "meta": {
-        "version": "1.2",
+        "version": "1.3",
         "lastUpdated": "2025-12-17",
         "builtWith": "Google Antigravity",
         "originalSize": "43KB markdown",
-        "optimizedSize": "~13KB JSON",
-        "reduction": "~70%",
-        "recentChanges": "Fixed critical 403 error handling bug, added streaming ZIP fallback, migrated to pnpm 10.26.0, changed dev port to 3300"
+        "optimizedSize": "~15KB JSON",
+        "reduction": "~65%",
+        "recentChanges": "Implemented 403 retry-once-before-fatal fix, added CDN-friendly fetch options (credentials:omit, cache:no-store)"
     }
 }
